@@ -1,0 +1,10 @@
+[project]
+name = "innotter-service"
+version = "0.1.0"
+description = "Innotter service"
+requires-python = ">=3.13"
+dependencies = [
+    "django>=6.0.6",
+    "pymysql>=1.2.0",
+    "python-decouple>=3.8",
+]
