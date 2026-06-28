@@ -2,7 +2,7 @@ services:
     db_ints:
       image: mysql:8.0
       container_name: mysql_innotter
-      restart: always
+#      restart: always
       healthcheck:
         test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
         interval: 5s
