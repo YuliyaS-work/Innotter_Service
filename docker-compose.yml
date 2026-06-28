@@ -17,6 +17,8 @@ services:
         - mysql-data:/var/lib/mysql
       ports:
         - "3306:3306"
+      networks:
+        - inner-net
 
 
 
@@ -40,6 +42,13 @@ services:
           condition: service_healthy
       ports:
         - "8002:8002"
+      networks:
+        - inner-net
 
 volumes:
   mysql-data:
+
+
+networks:
+  inner-net:
+    external: true
