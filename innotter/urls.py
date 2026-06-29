@@ -1,8 +1,8 @@
 from django.urls import path
 
-from innotter.views import FeedListAPIView
+from innotter.views import FeedAPIView
 
 
 urlpatterns = [
-    path("api/feed/", FeedListAPIView.as_view())
+    path("api/feed/", FeedAPIView.as_view())
 ]
