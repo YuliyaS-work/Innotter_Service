@@ -14,6 +14,7 @@ class Page(models.Model):
     name = models.CharField(max_length=50, unique=True, verbose_name="Page name")
     description = models.CharField(max_length=255, null=True, blank=True, verbose_name="Page description")
     user_id = models.CharField(max_length=36, verbose_name="User ID")
+    group_id = models.PositiveSmallIntegerField(default=0, verbose_name="Group ID of a user")
     image_url = models.CharField(max_length=255, null=True, blank=True, verbose_name="Image URL")
     is_blocked = models.BooleanField(default=False, verbose_name="Page status")
     unblock_date = models.DateTimeField(null=True, blank=True, auto_now=True, verbose_name="Unblocked time")
@@ -57,6 +58,7 @@ class Followers(models.Model):
     """ Django model stores users that follow a page."""
     page = models.ForeignKey(Page, on_delete=models.CASCADE, related_name="followers", verbose_name="Page")
     user_id = models.CharField(max_length=36, verbose_name="User ID")
+    group_id = models.PositiveSmallIntegerField(default=0, verbose_name="Group ID of a user")
 
     class Meta:
         verbose_name_plural = "Followers"
