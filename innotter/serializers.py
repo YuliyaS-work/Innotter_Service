@@ -3,7 +3,7 @@ from rest_framework import serializers
 from innotter.models import Post, Page, Tag
 
 
-class PageCreateSerializer(serializers.ModelSerializer):
+class PageCreateUpdateSerializer(serializers.ModelSerializer):
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
         many=True,

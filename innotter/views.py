@@ -15,8 +15,8 @@ from rest_framework.response import Response
 from innotter.exceptions.api_exceptions import BaseAPIException, ResourceException
 from innotter.models import Followers, Post, Page
 from innotter.pagination import StandardResultsSetPagination
-from innotter.permissions import AllowAllAuthenticatedUser, AllowAllRoles
-from innotter.serializers import FeedSerializer, PageCreateSerializer, PageGetSerializer, PostGetSerializer, \
+from innotter.permissions import AllowAllAuthenticatedUser, AllowAllRoles, IsUserOwner
+from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, PageGetSerializer, PostGetSerializer, \
     PageWithPostsSerializer, TagGetSerializer
 
 logger = logging.getLogger(__name__)
@@ -57,13 +57,13 @@ class PageCreateAPIView(APIView):
     permission_classes = [AllowAllAuthenticatedUser]
 
     @swagger_auto_schema(
-        request_body=PageCreateSerializer,
+        request_body=PageCreateUpdateSerializer,
         responses={201: PageGetSerializer}
     )
 
     def post(self, request):
-        logger.info(f"[PAGE] Creating new page")
-        serializer = PageCreateSerializer(data=request.data)
+        logger.info("[PAGE] Creating new page")
+        serializer = PageCreateUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
@@ -72,7 +72,7 @@ class PageCreateAPIView(APIView):
                 group_id=request.auth_user["group_id"]
             )
 
-            logger.info(f"[PAGE] Page created successfully")
+            logger.info("[PAGE] Page created successfully")
 
             return Response(PageGetSerializer(page).data, status=201)
         except Exception as e:
@@ -105,19 +105,19 @@ class PageDeleteAPIView(APIView):
         logger.info(f"[PAGE] Deleting page, page_id={page_id}")
 
         if not page_id:
-            logger.error(f"[PAGE] Page was not found")
+            logger.error("[PAGE] Page was not found")
             raise ResourceException("Page was not found")
 
         try:
-            instance = Page.objects.get(pk=page_id)
+            page = Page.objects.get(pk=page_id)
         except Page.DoesNotExist:
-            logger.error(f"[PAGE] Page was not found")
+            logger.error("[PAGE] Page was not found")
             raise ResourceException("Page was not found")
 
-        self.check_object_permissions(request, instance)
+        self.check_object_permissions(request, page)
 
         try:
-            instance.delete()
+            page.delete()
             logger.info(f"[PAGE] Page was deleted successfully, page_id={page_id}")
 
         except Exception as e:
@@ -156,7 +156,7 @@ class PagePostsGetAPIView(APIView):
         logger.info(f"[PAGE] Building a post list of a page, page_id={page_id}")
 
         if not page_id:
-            logger.error(f"[PAGE] Page was not found")
+            logger.error("[PAGE] Page was not found")
             raise ResourceException("Page was not found")
 
         try:
@@ -179,9 +179,65 @@ class PagePostsGetAPIView(APIView):
             return Response(data_response)
 
         except Page.DoesNotExist:
-            logger.error(f"[PAGE] Page was not found")
+            logger.error("[PAGE] Page was not found")
             raise ResourceException("Page was not found")
 
         except Exception as e:
             logger.error(f"[PAGE] Error while building post list, page_id={page_id}, srt({e})")
+            raise BaseAPIException()
+
+
+class PagePatchAPIView(APIView):
+    permission_classes = [IsUserOwner]
+    serializer_class = PageGetSerializer
+
+    @swagger_auto_schema(
+        manual_parameters=[
+            openapi.Parameter(
+                name="page_id",
+                in_=openapi.IN_PATH,
+                description="Page ID for updating",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            )
+        ],
+        request_body=PageCreateUpdateSerializer,
+        responses={
+            200: openapi.Response("Page was updated successfully"),
+            404: openapi.Response("Page was not found")
+        }
+    )
+
+    def patch(self, request, *args, **kwargs):
+
+        page_id = kwargs.get("page_id", None)
+        logger.info(f"[PAGE] Updating page, page_id={page_id}")
+
+        if not page_id:
+            logger.error("[PAGE] Page was not found")
+            raise ResourceException("Page was not found")
+
+        try:
+            page = Page.objects.get(pk=page_id)
+        except Page.DoesNotExist:
+            logger.error("[PAGE] Page was not found")
+            raise ResourceException("Page was not found")
+
+        self.check_object_permissions(request, page)
+
+        serializer = PageCreateUpdateSerializer(
+            page,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            page = serializer.save()
+
+            logger.info("[PAGE] Page updated successfully")
+
+            return Response(PageGetSerializer(page).data, status=200)
+        except Exception as e:
+            logger.error(f"[PAGE] Page was not updated, srt({e})")
             raise BaseAPIException()

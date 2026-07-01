@@ -11,3 +11,9 @@ dependencies = [
     "pymysql>=1.2.0",
     "python-decouple>=3.8",
 ]
+
+[dependency-groups]
+dev = [
+    "mypy>=2.1.0",
+    "ruff>=0.15.20",
+]
