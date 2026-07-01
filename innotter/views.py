@@ -16,7 +16,8 @@ from innotter.exceptions.api_exceptions import BaseAPIException, ResourceExcepti
 from innotter.models import Followers, Post, Page
 from innotter.pagination import StandardResultsSetPagination
 from innotter.permissions import AllowAllAuthenticatedUser, AllowAllRoles
-from innotter.serializers import FeedSerializer, PageCreateSerializer, PageGetSerializer, PostGetSerializer
+from innotter.serializers import FeedSerializer, PageCreateSerializer, PageGetSerializer, PostGetSerializer, \
+    PageWithPostsSerializer, TagGetSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +25,7 @@ class FeedAPIView(APIView):
     """
     Feed API endpoint for retrieving posts from pages followed by the authenticated user.
     """
+    permission_classes = [AllowAllAuthenticatedUser]
     serializer_class = FeedSerializer
 
     def get(self, request):
@@ -35,11 +37,11 @@ class FeedAPIView(APIView):
                 user_id=user_id
             ).values_list("page_id")
 
-            posts_list = Post.objects.filter(
-                page_id__in=followed_pages
-            ).order_by("-created_at")
+            post_list = Post.objects.filter(page_id__in=followed_pages)
+            post_list = post_list.select_related("page")    # post list with data page
+            post_list = post_list.prefetch_related("page__tags").order_by("-created_at")    # ordered post list with page tags
 
-            serializer = self.serializer_class(posts_list, many=True)
+            serializer = self.serializer_class(post_list, many=True)
 
             logger.info(f"[FEED] Response ready, user_id={user_id}")
 
@@ -127,7 +129,7 @@ class PageDeleteAPIView(APIView):
 
 class PagePostsGetAPIView(APIView):
     permission_classes = [AllowAllAuthenticatedUser]
-    serializer_class = PostGetSerializer
+    serializer_class = PageWithPostsSerializer
     pagination_class = StandardResultsSetPagination
 
     @swagger_auto_schema(
@@ -158,16 +160,23 @@ class PagePostsGetAPIView(APIView):
             raise ResourceException("Page was not found")
 
         try:
-            page = Page.objects.prefetch_related("posts").get(pk=page_id)
+            page = Page.objects.prefetch_related("posts", "tags").get(pk=page_id)
             post_list = page.posts.all().order_by("-created_at")
 
             paginator = self.pagination_class()
             paginated_post_list = paginator.paginate_queryset(post_list, request)
 
-            serializer = self.serializer_class(paginated_post_list, many=True)
+            post_response = paginator.get_paginated_response(
+                PostGetSerializer(paginated_post_list, many=True).data
+            ).data
+            data_response = {
+                "page": PageGetSerializer(page).data,
+                "tags": TagGetSerializer(page.tags.all(), many=True).data,
+                "posts": post_response
+            }
 
             logger.info(f"[PAGE] Post list was built successfully, page_id={page_id}")
-            return paginator.get_paginated_response(serializer.data)
+            return Response(data_response)
 
         except Page.DoesNotExist:
             logger.error(f"[PAGE] Page was not found")

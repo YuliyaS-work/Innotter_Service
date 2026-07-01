@@ -10,6 +10,7 @@ from innotter.models import Page, Post, Followers, Likes, Tag
 class PageAdmin(admin.ModelAdmin):
     """Admin class that shows and manages page data in the Django admin."""
     list_display = (
+        "id",
         "name",
         "description",
         "user_id",
@@ -19,7 +20,7 @@ class PageAdmin(admin.ModelAdmin):
         "updated_at",
         "followers_count"
     )
-    ordering = ("name", "followers_count")
+    ordering = ("id", "name", "followers_count")
     readonly_fields = ("followers_count",)
     search_fields = ("name", )
 
@@ -27,6 +28,7 @@ class PageAdmin(admin.ModelAdmin):
 class PostAdmin(admin.ModelAdmin):
     """Admin class that displays posts and their main fields in the Django admin."""
     list_display = (
+        "id",
         "get_page_name",
         "content",
         "reply_to",
@@ -34,7 +36,7 @@ class PostAdmin(admin.ModelAdmin):
         "updated_at",
         "likes_count"
     )
-    ordering = ("likes_count",)
+    ordering = ("id", "likes_count",)
     search_fields = ("get_page_name",)
     readonly_fields = ("likes_count",)
 
@@ -46,14 +48,14 @@ class PostAdmin(admin.ModelAdmin):
 
 class TagAdmin(admin.ModelAdmin):
     """Admin class for viewing and searching tags in the Django admin."""
-    list_display = ("name",)
-    ordering = ("name",)
+    list_display = ("id", "name")
+    ordering = ("id", "name")
     search_fields = ("name",)
 
 
 class FollowersAdmin(admin.ModelAdmin):
     """Admin class that shows user subscriptions to pages."""
-    list_display = ( "user_id", "get_page_id", "get_page_name")
+    list_display = ("id", "user_id", "get_page_id", "get_page_name")
     search_fields = ("page__name",)
 
     def get_page_id(self, obj):
@@ -69,7 +71,7 @@ class FollowersAdmin(admin.ModelAdmin):
 
 class LikesAdmin(admin.ModelAdmin):
     """Admin class that shows which users liked specific posts."""
-    list_display = ( "user_id", "get_post_id")
+    list_display = ("id", "user_id", "get_post_id")
     search_fields = ("page__id",)
 
     def get_post_id(self, obj):
