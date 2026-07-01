@@ -19,3 +19,7 @@ class BaseAPIException(APIException):
             "detail": self.detail,
             "status_code": self.status_code
         }
+
+class ResourceException(BaseAPIException):
+    status_code = 404
+    detail = "Resource is not found"

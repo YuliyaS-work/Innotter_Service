@@ -189,5 +189,6 @@ LOGGING = {
 
 # Custom exception handler
 REST_FRAMEWORK = {
-    "EXCEPTION_HANDLER": "innotter.exceptions.exception_handler.global_exception_handler"
+    'EXCEPTION_HANDLER': 'innotter.exceptions.exception_handler.global_exception_handler',
+    'DEFAULT_PAGINATION_CLASS': 'innotter.pagination.StandardResultsSetPagination'
 }

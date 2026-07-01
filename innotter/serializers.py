@@ -54,3 +54,19 @@ class PageGetSerializer(serializers.ModelSerializer):
             "followers_count"
         ]
         read_only_fields = fields
+
+
+class PostGetSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Post
+        fields = [
+            "id",
+            "page",
+            "content",
+            "reply_to",
+            "created_at",
+            "updated_at",
+            "likes_count"
+        ]
+        read_only_fields = fields

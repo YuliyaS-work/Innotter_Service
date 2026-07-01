@@ -24,7 +24,7 @@ def global_exception_handler(exc, context):
     request = context.get("request")
 
     if isinstance(exc, BaseAPIException):
-        logger.warning("[APIException]: status=%s | %s | path=%s", exc.status_code, exc.detail, request.url.path)
+        logger.warning("[APIException]: status=%s | %s | path=%s", exc.status_code, exc.detail, request.path)
         return Response(exc.get_dict(), status=exc.status_code)
 
     response = exception_handler(exc, context)
@@ -34,7 +34,7 @@ def global_exception_handler(exc, context):
         return response
 
     logger.exception("Unhandled exception at %s | %s: %s",
-                     request.url.path,
+                     request.path,
                      type(exc).__name__,
                      str(exc),
                      )
