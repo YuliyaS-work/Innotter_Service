@@ -38,74 +38,25 @@ def check_access(
     return False
 
 
-class AllowAllRoles(BasePermission):
+class AllowAllAuthenticatedUser(BasePermission):
     """Allow action for all roles without filter."""
     def has_permission(self, request, view):
         return True
 
 
-class CreatePage(AllowAllRoles):
-    """Allow all roles to create a page."""
-    pass
+class AllowAllRoles(BasePermission):
+    """Allow admin, moderator of the same group or page owner to work with object."""
+    def has_object_permission(self, request, view, obj):
+        return check_access(request, obj, allow_admin=True, allow_moderator=True, allow_user=True)
 
 
-class GetPages(AllowAllRoles):
-    """Allow all roles to get pages."""
-    pass
+class IsUserOwner(BasePermission):
+    """Allow only the page owner to work with an object."""
+    def has_object_permission(self, request, view, obj):
+        return check_access(request, obj, allow_user=True)
 
 
-class FollowUnfollowPage(AllowAllRoles):
-    """Allow all roles to follow or unfollow a page."""
-    pass
-
-
-class DeletePage(BasePermission):
-    """Allow admin, moderator of the same group or page owner to delete the page."""
-    def has_object_permission(self, request, view, page):
-        return check_access(request, page, allow_admin=True, allow_moderator=True, allow_user=True)
-
-
-class UpdatePage(BasePermission):
-    """Allow only the page owner to update the page."""
-    def has_object_permission(self, request, view, page):
-        return check_access(request, page, allow_user=True)
-
-
-class GetFollowers(BasePermission):
-    """Allow admin, moderator of the same group or page owner to view followers."""
-    def has_object_permission(self, request, view, page):
-        return check_access(request, page, allow_admin=True, allow_moderator=True, allow_user=True)
-
-
-class BlockPage(BasePermission):
-    """Allow admin or moderator of the same group to block the page."""
-    def has_object_permission(self, request, view, page):
-        return check_access(request, page, allow_admin=True, allow_moderator=True)
-
-
-class CreatePost(BasePermission):
-    """Allow only the page owner to create a post."""
-    def has_object_permission(self, request, view, page):
-        return check_access(request, page, allow_user=True)
-
-
-class UpdatePost(BasePermission):
-    """Allow admin, moderator of the same group or page owner to update the post."""
-    def has_object_permission(self, request, view, post):
-        return check_access(request, post.page, allow_admin=True, allow_moderator=True, allow_user=True)
-
-
-class DeletePost(BasePermission):
-    """Allow admin, moderator of the same group or page owner to delete the post."""
-    def has_object_permission(self, request, view, post):
-        return check_access(request, post.page, allow_admin=True, allow_moderator=True, allow_user=True)
-
-
-class CreateTag(AllowAllRoles):
-    """Allow all roles to create a tag."""
-    pass
-
-
-class GetTags(AllowAllRoles):
-    """Allow all roles to view tags."""
-    pass
+class IsAdminModerator(BasePermission):
+    """Allow admin or moderator of the same group to work with object."""
+    def has_object_permission(self, request, view, obj):
+        return check_access(request,obj, allow_admin=True, allow_moderator=True)
