@@ -6,15 +6,20 @@ MODERATOR can work with objects in their group.
 USER can work only with their own objects.
 Some actions are open for all authenticated users.
 """
+from typing import Any
+
 from rest_framework.permissions import BasePermission
+from rest_framework.request import Request
+from rest_framework.views import APIView
+
 
 def check_access(
-        request,
-        obj,
-        allow_admin=False,
-        allow_moderator=False,
-        allow_user=False
-):
+        request: Request,
+        obj: Any,
+        allow_admin: bool = False,
+        allow_moderator: bool = False,
+        allow_user: bool = False
+) -> bool:
     """
     Check access rules for the object.
 
@@ -22,9 +27,9 @@ def check_access(
     MODERATOR can do it if group ID matches.
     USER can do it if he is the owner (user ID matches).
     """
-    roles = request.auth_user["roles"]
-    user_id = request.auth_user["user_id"]
-    group_id = request.auth_user["group_id"]
+    roles: list[str] = request.auth_user["roles"]
+    user_id: int = request.auth_user["user_id"]
+    group_id: int | None = request.auth_user["group_id"]
 
     if "ADMIN" in roles and allow_admin:
         return True
@@ -40,23 +45,48 @@ def check_access(
 
 class AllowAllAuthenticatedUser(BasePermission):
     """Allow action for all roles without filter."""
-    def has_permission(self, request, view):
+    def has_permission(self, request: Request, view: APIView) -> bool:
         return True
 
 
 class AllowAllRoles(BasePermission):
     """Allow admin, moderator of the same group or page owner to work with object."""
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request: Request, view: APIView, obj: Any) -> bool:
         return check_access(request, obj, allow_admin=True, allow_moderator=True, allow_user=True)
 
 
 class IsUserOwner(BasePermission):
     """Allow only the page owner to work with an object."""
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request: Request, view: APIView, obj: Any) -> bool:
         return check_access(request, obj, allow_user=True)
 
 
 class IsAdminModerator(BasePermission):
     """Allow admin or moderator of the same group to work with object."""
-    def has_object_permission(self, request, view, obj):
+    def has_object_permission(self, request: Request, view: APIView, obj: Any) -> bool:
         return check_access(request,obj, allow_admin=True, allow_moderator=True)
+
+
+class ComplexApiRemission(BasePermission):
+    """Combined permission class for different HTTP methods in a single endpoint."""
+    method_permission: dict[str, type[BasePermission]] = {}
+
+    def has_permission(self, request: Request, view: APIView) -> bool:
+        return True
+
+    def has_object_permission(self, request: Request, view: APIView, obj: Any) -> bool:
+        permission_class = self.method_permission.get(request.method)
+
+        if permission_class is None:
+            return False
+
+        return permission_class().has_object_permission(request, view, obj)
+
+
+class PageDetailRemission(ComplexApiRemission):
+    """Combined permission class for PageDetailApiView endpoint"""
+    method_permission: dict[str, type[BasePermission]] = {
+        "GET": AllowAllRoles,
+        "PATCH": IsUserOwner,
+        "DELETE": AllowAllRoles
+    }
