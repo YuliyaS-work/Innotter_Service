@@ -21,5 +21,6 @@ class BaseAPIException(APIException):
         }
 
 class ResourceException(BaseAPIException):
+    """ Exception class for error when the object is not found."""
     status_code = 404
     detail = "Resource is not found"

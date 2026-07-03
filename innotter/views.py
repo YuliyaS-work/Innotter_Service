@@ -6,16 +6,17 @@ user‑driven interactions. All views rely on JWT authentication performed by th
 middleware.
 """
 import logging
+from typing import Any
 
-from drf_yasg import openapi
-from drf_yasg.utils import swagger_auto_schema
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
+from rest_framework.request import Request
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from innotter.exceptions.api_exceptions import BaseAPIException, ResourceException
 from innotter.models import Followers, Post, Page
 from innotter.pagination import StandardResultsSetPagination
-from innotter.permissions import AllowAllAuthenticatedUser, AllowAllRoles, IsUserOwner
+from innotter.permissions import AllowAllAuthenticatedUser, AllowAllRoles, IsUserOwner, PageDetailRemission
 from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, PageGetSerializer, PostGetSerializer, \
     PageWithPostsSerializer, TagGetSerializer
 
@@ -23,13 +24,21 @@ logger = logging.getLogger(__name__)
 
 class FeedAPIView(APIView):
     """
-    Feed API endpoint for retrieving posts from pages followed by the authenticated user.
+    Return a feed of posts from pages followed by the authenticated user.
+    The endpoint collects posts from all followed pages, orders them by creation time,
+    and returns them as a JSON list.
     """
     permission_classes = [AllowAllAuthenticatedUser]
     serializer_class = FeedSerializer
 
-    def get(self, request):
-        user_id = self.request.auth_user["user_id"]
+    @extend_schema(
+        responses=FeedSerializer,
+        summary="Get user feed",
+        description="Return posts from pages followed by the authenticated user."
+    )
+
+    def get(self, request: Request) -> Response:
+        user_id: int = self.request.auth_user["user_id"]
         logger.info(f"[FEED] Request received, user_id={user_id}")
 
         try:
@@ -44,25 +53,31 @@ class FeedAPIView(APIView):
             serializer = self.serializer_class(post_list, many=True)
 
             logger.info(f"[FEED] Response ready, user_id={user_id}")
-
             return Response(serializer.data)
 
         except Exception as e:
             logger.error(f"[FEED] Error while building feed, user_id={user_id}, str({e})")
-
             raise BaseAPIException()
 
 
 class PageCreateAPIView(APIView):
+    """
+    Create a new page for the authenticated user.
+    The endpoint validates input data and stores a new page in the database.
+    Returns a new page.
+    """
     permission_classes = [AllowAllAuthenticatedUser]
 
-    @swagger_auto_schema(
-        request_body=PageCreateUpdateSerializer,
-        responses={201: PageGetSerializer}
+    @extend_schema(
+        request=PageCreateUpdateSerializer,
+        responses={201: PageGetSerializer},
+        summary="Create a new page",
+        description="Create a page for the authenticated user."
     )
 
-    def post(self, request):
+    def post(self, request: Request) -> Response:
         logger.info("[PAGE] Creating new page")
+
         serializer = PageCreateUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -80,28 +95,36 @@ class PageCreateAPIView(APIView):
             raise BaseAPIException()
 
 
+class PageDetailAPIView(APIView):
+    """
+    Handle operations on a single page:
+    - GET: page with its posts and related tags by any authenticated user
+    - PATCH: update a page by a page owner
+    - DELETE: delete a page by admin, moderator of the same group or a page owner
+    """
+    permission_classes = [PageDetailRemission]
 
-class PageDeleteAPIView(APIView):
-    permission_classes = [AllowAllRoles]
-
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
                 name="page_id",
-                in_=openapi.IN_PATH,
-                description="Page ID for deleting",
-                type=openapi.TYPE_INTEGER,
-                required=True
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="Page ID for deleting"
             )
         ],
         responses={
-            200: openapi.Response("Page was deleted successfully"),
-            404: openapi.Response("Page was not found")
-        }
+            200: OpenApiResponse(description="Page was deleted successfully"),
+            404: OpenApiResponse(description="Page was not found")
+        },
+        summary="Delete a page",
     )
-
-    def delete(self, request, *args, **kwargs):
-        page_id = kwargs.get("page_id", None)
+    def delete(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """
+        Delete the selected page.
+        The method checks permissions and removes the page from the database.
+        """
+        page_id: int | None = kwargs.get("page_id", None)
         logger.info(f"[PAGE] Deleting page, page_id={page_id}")
 
         if not page_id:
@@ -109,7 +132,7 @@ class PageDeleteAPIView(APIView):
             raise ResourceException("Page was not found")
 
         try:
-            page = Page.objects.get(pk=page_id)
+            page: Page = Page.objects.get(pk=page_id)
         except Page.DoesNotExist:
             logger.error("[PAGE] Page was not found")
             raise ResourceException("Page was not found")
@@ -127,32 +150,30 @@ class PageDeleteAPIView(APIView):
         return Response({"detail": f"Deleted page, page_id={page_id}"})
 
 
-class PagePostsGetAPIView(APIView):
-    permission_classes = [AllowAllAuthenticatedUser]
-    serializer_class = PageWithPostsSerializer
-    pagination_class = StandardResultsSetPagination
-
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
                 name="page",
-                in_=openapi.IN_QUERY,
-                description="Page",
-                type=openapi.TYPE_INTEGER,
-                required=False
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Page number"
             ),
-            openapi.Parameter(
+            OpenApiParameter(
                 name="page_size",
-                in_=openapi.IN_QUERY,
-                description="Number of posts",
-                type=openapi.TYPE_INTEGER,
-                required=False
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Number of posts per page"
             )
-        ]
+        ],
+        responses=PageWithPostsSerializer,
+        summary="Get posts of a page",
     )
-
-    def get(self, request, *args, **kwargs):
-        page_id = kwargs.get("page_id", None)
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """
+        Return page info, related tags and paginated posts.
+        The method builds a combined response with page data and posts.
+        """
+        page_id: int | None = kwargs.get("page_id", None)
         logger.info(f"[PAGE] Building a post list of a page, page_id={page_id}")
 
         if not page_id:
@@ -160,18 +181,19 @@ class PagePostsGetAPIView(APIView):
             raise ResourceException("Page was not found")
 
         try:
-            page = Page.objects.prefetch_related("posts", "tags").get(pk=page_id)
+            page: Page = Page.objects.prefetch_related("posts", "tags").get(pk=page_id)
             post_list = page.posts.all().order_by("-created_at")
 
-            paginator = self.pagination_class()
+            paginator= StandardResultsSetPagination()
             paginated_post_list = paginator.paginate_queryset(post_list, request)
 
             post_response = paginator.get_paginated_response(
                 PostGetSerializer(paginated_post_list, many=True).data
             ).data
+
+            # data tags are included in "page"
             data_response = {
                 "page": PageGetSerializer(page).data,
-                "tags": TagGetSerializer(page.tags.all(), many=True).data,
                 "posts": post_response
             }
 
@@ -187,30 +209,30 @@ class PagePostsGetAPIView(APIView):
             raise BaseAPIException()
 
 
-class PagePatchAPIView(APIView):
-    permission_classes = [IsUserOwner]
-    serializer_class = PageGetSerializer
-
-    @swagger_auto_schema(
-        manual_parameters=[
-            openapi.Parameter(
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
                 name="page_id",
-                in_=openapi.IN_PATH,
-                description="Page ID for updating",
-                type=openapi.TYPE_INTEGER,
-                required=True
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="ID of the page to update"
             )
         ],
-        request_body=PageCreateUpdateSerializer,
+        request=PageCreateUpdateSerializer,
         responses={
-            200: openapi.Response("Page was updated successfully"),
-            404: openapi.Response("Page was not found")
-        }
+            200: PageGetSerializer,
+            404: OpenApiResponse(description="Page was not found")
+        },
+        summary="Update a page",
+        description="Apply partial updates to a page owned by the authenticated user."
     )
-
-    def patch(self, request, *args, **kwargs):
-
-        page_id = kwargs.get("page_id", None)
+    def patch(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """
+        Update page fields for the authenticated page owner.
+        The endpoint applies partial updates to a page.
+        Returns the updated page.
+        """
+        page_id: int | None = kwargs.get("page_id", None)
         logger.info(f"[PAGE] Updating page, page_id={page_id}")
 
         if not page_id:
@@ -218,7 +240,7 @@ class PagePatchAPIView(APIView):
             raise ResourceException("Page was not found")
 
         try:
-            page = Page.objects.get(pk=page_id)
+            page: Page = Page.objects.get(pk=page_id)
         except Page.DoesNotExist:
             logger.error("[PAGE] Page was not found")
             raise ResourceException("Page was not found")

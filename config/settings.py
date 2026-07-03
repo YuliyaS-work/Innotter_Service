@@ -27,7 +27,7 @@ SECRET_KEY = config('SECRET_KEY')
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS: list[str] = []
 
 
 # Application definition
@@ -41,7 +41,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
-    'drf_yasg',
+    'drf_spectacular',
 
     'innotter',
 ]
@@ -188,8 +188,16 @@ LOGGING = {
     },
 }
 
-# Custom exception handler
+# DRF configuration
 REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'innotter.exceptions.exception_handler.global_exception_handler',
-    'DEFAULT_PAGINATION_CLASS': 'innotter.pagination.StandardResultsSetPagination'
+    'DEFAULT_PAGINATION_CLASS': 'innotter.pagination.StandardResultsSetPagination',
+    'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+}
+
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Innotter API',
+    'DESCRIPTION': 'API documentation for the Innotter Service',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }

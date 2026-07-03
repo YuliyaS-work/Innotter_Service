@@ -1,11 +1,14 @@
+"""
+This file defines URL routes for the Innotter application.
+It adds API endpoints for pages, posts and the user feed.
+"""
 from django.urls import path
 
-from innotter.views import FeedAPIView, PageCreateAPIView, PageDeleteAPIView, PagePostsGetAPIView, PagePatchAPIView
+from innotter.views import FeedAPIView, PageCreateAPIView, PageDetailAPIView
+
 
 urlpatterns = [
     path("api/feed/", FeedAPIView.as_view(), name="user_feed"),
     path("api/page/", PageCreateAPIView.as_view(), name="new_page"),
-    path("api/page/<int:page_id>/", PageDeleteAPIView.as_view(), name="delete_page"),
-    path("api/page/<int:page_id>/posts/", PagePostsGetAPIView.as_view(), name="post_list"),
-    path("api/page/<int:page_id>", PagePatchAPIView.as_view(), name="update_page"),
+    path("api/page/<int:page_id>/", PageDetailAPIView.as_view(), name="detail_page"),
 ]

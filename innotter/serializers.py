@@ -1,9 +1,15 @@
+"""
+This file contains serializers for pages, posts and tags.
+They define how models are converted to JSON and what fields are visible in API responses.
+The serializers also control read-only fields and nested tag data.
+"""
 from rest_framework import serializers
 
 from innotter.models import Post, Page, Tag
 
 
 class PageCreateUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for creating and updating a Page."""
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
         many=True,
@@ -22,18 +28,22 @@ class PageCreateUpdateSerializer(serializers.ModelSerializer):
 
 
 class TagGetSerializer(serializers.ModelSerializer):
+    """Serializer for returning tag information."""
     class Meta:
         model = Tag
         fields = ["id", "name"]
 
 
 class PageGetSerializer(serializers.ModelSerializer):
+    """Serializer for returning full page information."""
     tags = TagGetSerializer(many=True)
 
     class Meta:
         model = Page
         fields = [
             "id",
+            "user_id",
+            "group_id",
             "name",
             "description",
             "image_url",
@@ -48,6 +58,7 @@ class PageGetSerializer(serializers.ModelSerializer):
 
 
 class PostGetSerializer(serializers.ModelSerializer):
+    """Serializer for returning post information."""
 
     class Meta:
         model = Post
@@ -62,14 +73,15 @@ class PostGetSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+
 class PageWithPostsSerializer(serializers.Serializer):
+    """Serializer for returning a page together with its tags and posts."""
     page = PageGetSerializer()
-    tags = TagGetSerializer(many=True)
     posts = serializers.DictField()
 
 
 class PageShortSerializer(serializers.ModelSerializer):
-    # for feedserializer
+    """Short serializer for page data used in feed responses."""
     tags = TagGetSerializer(many=True)
 
     class Meta:
@@ -83,6 +95,10 @@ class PageShortSerializer(serializers.ModelSerializer):
 
 
 class FeedSerializer(serializers.ModelSerializer):
+    """
+    Serializer for feed items.
+    It includes basic post information and a short page representation.
+    """
     page = PageShortSerializer()
 
     class Meta:

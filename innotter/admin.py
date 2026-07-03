@@ -37,10 +37,10 @@ class PostAdmin(admin.ModelAdmin):
         "likes_count"
     )
     ordering = ("id", "likes_count",)
-    search_fields = ("get_page_name",)
+    search_fields = ("page__name",)
     readonly_fields = ("likes_count",)
 
-    def get_page_name(self, obj):
+    def get_page_name(self, obj: Post) -> str:
         """Return page name of a post in the Django admin panel."""
         return obj.page.name
     get_page_name.short_description = "Name page"
@@ -58,23 +58,23 @@ class FollowersAdmin(admin.ModelAdmin):
     list_display = ("id", "user_id", "get_page_id", "get_page_name")
     search_fields = ("page__name",)
 
-    def get_page_id(self, obj):
+    def get_page_id(self, obj: Followers) -> str:
         """Return followed page ID in the Django admin panel."""
         return obj.page_id
     get_page_id.short_description  = "Page ID"
 
-    def get_page_name(self, obj):
+    def get_page_name(self, obj: Followers) -> str:
         """Return followed page name in the Django admin panel."""
         return obj.page.name
-    get_page_name.short_description = "Name page"
+    get_page_name.short_description = "Page name"
 
 
 class LikesAdmin(admin.ModelAdmin):
     """Admin class that shows which users liked specific posts."""
     list_display = ("id", "user_id", "get_post_id")
-    search_fields = ("page__id",)
+    search_fields = ("post__id",)
 
-    def get_post_id(self, obj):
+    def get_post_id(self, obj: Likes) -> int:
         """Return liked post ID in the Django admin panel."""
         return obj.post_id
     get_post_id.short_description  = "Post ID"
