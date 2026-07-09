@@ -5,7 +5,7 @@ It adds API endpoints for pages, posts and the user feed.
 from django.urls import path
 
 from innotter.views import FeedAPIView, PageCreateAPIView, PageDetailAPIView, PageFollowAPIView, PageUnfollowAPIView, \
-    PageFollowersGetAPIView, PageBlockAPIView
+    PageFollowersGetAPIView, PageBlockAPIView, PostCreateAPIView
 
 urlpatterns = [
     path("api/feed/", FeedAPIView.as_view(), name="user_feed"),
@@ -15,4 +15,5 @@ urlpatterns = [
     path("api/page/<int:page_id>/unfollow/", PageUnfollowAPIView.as_view(), name="unfollow_page"),
     path("api/page/<int:page_id>/followers/", PageFollowersGetAPIView.as_view(), name="page_followers"),
     path("api/page/<int:page_id>/block/", PageBlockAPIView.as_view(), name="block_page"),
+    path("api/page/<int:page_id>/post/", PostCreateAPIView.as_view(), name="new_post"),
 ]

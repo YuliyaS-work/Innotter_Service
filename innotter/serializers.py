@@ -73,6 +73,16 @@ class PostGetSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+class PostCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating a new post."""
+
+    class Meta:
+        model = Post
+        fields = [
+            "content",
+            "reply_to",
+        ]
+
 
 class PageWithPostsSerializer(serializers.Serializer):
     """Serializer for returning a page together with its tags and posts."""

@@ -20,7 +20,7 @@ from innotter.pagination import StandardResultsSetPagination
 from innotter.permissions import AllowAllAuthenticatedUser, AllowAllRoles, IsUserOwner, PageDetailRemission, \
     IsAdminModerator
 from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, PageGetSerializer, PostGetSerializer, \
-    PageWithPostsSerializer, TagGetSerializer, FollowerCreateSerializer, FollowersGetSerializer
+    PageWithPostsSerializer, TagGetSerializer, FollowerCreateSerializer, FollowersGetSerializer, PostCreateSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -436,7 +436,7 @@ class PageFollowersGetAPIView(APIView):
                 description="ID of the page"
             ),
         ],
-        responses=FollowersGetSerializer,
+        responses={200: FollowersGetSerializer},
         summary="Get followers of a page",
     )
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
@@ -517,3 +517,57 @@ class PageBlockAPIView(APIView):
             raise BaseAPIException("Page was not updated")
 
 
+class PostCreateAPIView(APIView):
+    """
+    Create a new post by a page owner.
+    The endpoint validates input data and stores a new post in the database.
+    Returns a new post data.
+    """
+    permission_classes = [IsUserOwner]
+    serializer_class = PostCreateSerializer
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="page_id",
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="ID of the page to update"
+            )
+        ],
+        request=PostCreateSerializer,
+        responses={201: PostGetSerializer},
+        summary="Create a new post",
+        description="Create a post by a page owner."
+    )
+    def post(self, request: Request, **kwargs) -> Response:
+
+        page_id: int | None = kwargs.get("page_id", None)
+        logger.info(f"[PAGE] Creating new post, page_id={page_id}")
+
+        if not page_id:
+            logger.error("[PAGE] Page was not found")
+            raise ResourceException("Page was not found")
+
+        try:
+            page: Page = Page.objects.get(pk=page_id)
+        except Page.DoesNotExist:
+            logger.error("[PAGE] Page was not found")
+            raise ResourceException("Page was not found")
+
+        self.check_object_permissions(request, page)
+
+        serializer = PostCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            post = serializer.save(
+                page_id = page_id
+            )
+
+            logger.info("[PAGE] Post created successfully")
+            return Response(PostGetSerializer(post).data, status=201)
+
+        except Exception as e:
+            logger.error(f"[PAGE] Post was not created, srt({e})")
+            raise BaseAPIException("Post was not created")
