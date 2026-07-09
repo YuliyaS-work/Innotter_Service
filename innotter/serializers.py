@@ -5,7 +5,7 @@ The serializers also control read-only fields and nested tag data.
 """
 from rest_framework import serializers
 
-from innotter.models import Post, Page, Tag
+from innotter.models import Post, Page, Tag, Followers
 
 
 class PageCreateUpdateSerializer(serializers.ModelSerializer):
@@ -111,3 +111,11 @@ class FeedSerializer(serializers.ModelSerializer):
             "updated_at",
             "likes_count"
         )
+
+
+class FollowerCreateSerializer(serializers.ModelSerializer):
+    """Serializer for follower record creating."""
+
+    class Meta:
+        model = Followers
+        fields = ["page", "user_id", "group_id"]

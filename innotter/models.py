@@ -58,7 +58,7 @@ class Followers(models.Model):
     """ Django model stores users that follow a page."""
     page = models.ForeignKey(Page, on_delete=models.CASCADE, related_name="followers", verbose_name="Page")
     user_id = models.CharField(max_length=36, verbose_name="User ID")
-    group_id = models.PositiveSmallIntegerField(default=0, verbose_name="Group ID of a user")
+    group_id = models.PositiveSmallIntegerField(null=True, verbose_name="Group ID of a user")
 
     class Meta:
         verbose_name_plural = "Followers"
