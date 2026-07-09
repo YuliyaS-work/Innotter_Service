@@ -17,9 +17,10 @@ from rest_framework.response import Response
 from innotter.exceptions.api_exceptions import BaseAPIException, ResourceException
 from innotter.models import Followers, Post, Page
 from innotter.pagination import StandardResultsSetPagination
-from innotter.permissions import AllowAllAuthenticatedUser, AllowAllRoles, IsUserOwner, PageDetailRemission
+from innotter.permissions import AllowAllAuthenticatedUser, AllowAllRoles, IsUserOwner, PageDetailRemission, \
+    IsAdminModerator
 from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, PageGetSerializer, PostGetSerializer, \
-    PageWithPostsSerializer, TagGetSerializer, FollowerCreateSerializer
+    PageWithPostsSerializer, TagGetSerializer, FollowerCreateSerializer, FollowersGetSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -414,3 +415,43 @@ class PageUnfollowAPIView(APIView):
         except Exception as e:
             logger.error(f"[PAGE] Page was not unfollowed, page_id={page_id}, str({e})")
             raise BaseAPIException("Page was not unfollowed")
+
+
+class PageFollowersGetAPIView(APIView):
+    """
+    Returns the list of page followers according to the authenticated user's role.
+    ADMIN: returns all followers.
+    MODERATOR: returns followers from the page with user ID of the same group.
+    USER: returns followers only if they own the page.
+    """
+    permission_classes = [IsUserOwner, IsAdminModerator]
+    serializer_class = FollowersGetSerializer
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="page_id",
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="ID of the page"
+            ),
+        ],
+        responses=FollowersGetSerializer,
+        summary="Get followers of a page",
+    )
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        page_id: int | None = kwargs.get("page_id", None)
+        logger.info(f"[PAGE] Building a followers list of a page, page_id={page_id}")
+
+        if not page_id:
+            logger.error("[PAGE] Page was not found")
+            raise ResourceException("Page was not found")
+
+        try:
+            followers = Followers.objects.filter(page_id=page_id).all()
+            logger.info(f"[PAGE] Followers list was built successfully, page_id={page_id}")
+            return Response(FollowersGetSerializer(followers, many=True).data, status=200)
+
+        except Exception as e:
+            logger.error(f"[PAGE] Error while building follower list, page_id={page_id}, srt({e})")
+            raise BaseAPIException()

@@ -119,3 +119,11 @@ class FollowerCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Followers
         fields = ["page", "user_id", "group_id"]
+
+
+class FollowersGetSerializer(serializers.ModelSerializer):
+    """Serializer for getting followers from a page."""
+
+    class Meta:
+        model = Followers
+        fields = ["id", "page", "user_id", "group_id"]
