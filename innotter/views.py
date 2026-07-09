@@ -292,7 +292,7 @@ class PageFollowAPIView(APIView):
         summary="Follow a page",
         description="Follow a page by the authenticated user."
     )
-    def patch(self, request: Request, **kwargs):
+    def patch(self, request: Request, **kwargs)-> Response:
 
         page_id: int | None = kwargs.get("page_id", None)
         logger.info(f"[PAGE] Following page, page_id={page_id}")
@@ -369,7 +369,7 @@ class PageUnfollowAPIView(APIView):
         summary="Unfollow a page",
         description="Unfollow a page by the authenticated user."
     )
-    def patch(self, request: Request, **kwargs):
+    def patch(self, request: Request, **kwargs)-> Response:
 
         page_id: int | None = kwargs.get("page_id", None)
         logger.info(f"[PAGE] Following page, page_id={page_id}")
@@ -453,5 +453,67 @@ class PageFollowersGetAPIView(APIView):
             return Response(FollowersGetSerializer(followers, many=True).data, status=200)
 
         except Exception as e:
-            logger.error(f"[PAGE] Error while building follower list, page_id={page_id}, srt({e})")
+            logger.error(f"[PAGE] Error while building follower list, page_id={page_id}, str({e})")
             raise BaseAPIException()
+
+
+class PageBlockAPIView(APIView):
+    """
+    Updates the page status according to the authenticated user's role.
+    ADMIN can block/unblock all pages.
+    MODERATOR  can block/unblock pages created by users with the same group ID.
+    Returns the updated page data.
+    """
+    permission_classes = [IsAdminModerator]
+    serializer_class = PageGetSerializer
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="page_id",
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="ID of the page to update"
+            )
+        ],
+        request = None,
+        responses={
+            200: PageGetSerializer,
+            404: OpenApiResponse(description="Page was not found")
+        },
+        summary="Update a page status",
+        description="Update a page status by admin or moderator with the same group like owner."
+    )
+    def patch(self, request: Request, **kwargs)-> Response:
+        page_id: int | None = kwargs.get("page_id", None)
+        logger.info(f"[PAGE] Updating page, page_id={page_id}")
+
+        if not page_id:
+            logger.error("[PAGE] Page was not found")
+            raise ResourceException("Page was not found")
+
+        try:
+            page: Page = Page.objects.get(pk=page_id)
+        except Page.DoesNotExist:
+            logger.error("[PAGE] Page was not found")
+            raise ResourceException("Page was not found")
+
+        self.check_object_permissions(request, page)
+
+        try:
+            # Update page status
+            if page.is_blocked:
+                Page.objects.filter(pk=page_id).update(is_blocked=False)
+            else:
+                Page.objects.filter(pk=page_id).update(is_blocked=True)
+
+            page.refresh_from_db()
+
+            logger.info(f"[PAGE] Page updated successfully, page_id={page_id}")
+            return Response(PageGetSerializer(page).data, status=200)
+
+        except Exception as e:
+            logger.error(f"[PAGE] Page was not updated, page_id={page_id}, str({e})")
+            raise BaseAPIException("Page was not updated")
+
+
