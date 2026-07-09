@@ -300,31 +300,29 @@ class PageFollowAPIView(APIView):
             logger.error("[PAGE] Page was not found")
             raise ResourceException("Page was not found")
 
+        # Check subscription
+        if Followers.objects.filter(page_id=page_id, user_id=request.auth_user["user_id"]).exists():
+            logger.warning("[PAGE] Already followed")
+            raise ResourceException("Already followed")
+
         try:
-            # Check subscription
-            if Followers.objects.filter(page_id=page_id, user_id=request.auth_user["user_id"]).exists():
-                logger.warning("[PAGE] Already followed")
-                raise ResourceException("Already followed")
-
             page: Page = Page.objects.get(pk=page_id)
-
-            # Check a page owner
-            if page.user_id == request.auth_user["user_id"]:
-                logger.error("[PAGE] You cannot follow your own page")
-                raise ResourceException("You cannot follow your own page")
-
-
         except Page.DoesNotExist:
             logger.error("[PAGE] Page was not found")
             raise ResourceException("Page was not found")
 
-            self.check_object_permissions(request, page)
+        # Check a page owner
+        if page.user_id == request.auth_user["user_id"]:
+            logger.error(f"[PAGE] You cannot follow your own page, page_id={page_id}")
+            raise ResourceException("You cannot follow your own page")
+
+        self.check_object_permissions(request, page)
 
         try:
             # Increasing follower count
             Page.objects.filter(pk=page_id).update(followers_count=F("followers_count") + 1)
             page.refresh_from_db()
-            logger.info("[PAGE] Page updated successfully")
+            logger.info(f"[PAGE] Page updated successfully, page_id={page_id}")
 
             # Create new record in Followers
             serializer = FollowerCreateSerializer(data={
@@ -335,13 +333,84 @@ class PageFollowAPIView(APIView):
             )
             serializer.is_valid(raise_exception=True)
             serializer.save()
-            logger.info("[PAGE] Created new follower")
+            logger.info(f"[PAGE] Created new follower, page_id={page_id}")
 
-            logger.info("[PAGE] Followed successfully")
+            logger.info(f"[PAGE] Followed successfully, page_id={page_id}")
             return Response(PageGetSerializer(page).data, status=200)
 
         except Exception as e:
-            logger.error(f"[PAGE] Page was not followed, str({e})")
+            logger.error(f"[PAGE] Page was not followed, page_id={page_id}, str({e})")
             raise BaseAPIException()
 
 
+class PageUnfollowAPIView(APIView):
+    """
+    Update follower count of the page for the authenticated page owner.
+    Delete follower from Followers.
+    Returns the updated page.
+    """
+    permission_classes = [AllowAllAuthenticatedUser]
+    serializer_class = FollowerCreateSerializer
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="page_id",
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="ID of the page to update"
+            )
+        ],
+        responses={
+            200: PageGetSerializer,
+            404: OpenApiResponse(description="Page was not found")
+        },
+        summary="Unfollow a page",
+        description="Unfollow a page by the authenticated user."
+    )
+    def patch(self, request: Request, **kwargs):
+
+        page_id: int | None = kwargs.get("page_id", None)
+        logger.info(f"[PAGE] Following page, page_id={page_id}")
+
+        if not page_id:
+            logger.error("[PAGE] Page was not found")
+            raise ResourceException("Page was not found")
+
+
+        follower = Followers.objects.filter(page_id=page_id, user_id=request.auth_user["user_id"]).first()
+
+        # Check subscription
+        if not follower:
+            logger.warning(f"[PAGE] Already unfollowed, page_id={page_id}")
+            raise ResourceException("Already unfollowed")
+
+        try:
+            page: Page = Page.objects.get(pk=page_id)
+        except Page.DoesNotExist:
+            logger.error("[PAGE] Page was not found")
+            raise ResourceException("Page was not found")
+
+        # Check a page owner
+        if page.user_id == request.auth_user["user_id"]:
+            logger.error(f"[PAGE] You cannot unfollow your own page, page_id={page_id}")
+            raise ResourceException("You cannot unfollow your own page")
+
+        self.check_object_permissions(request, page)
+
+        try:
+            # Decreasing follower count
+            Page.objects.filter(pk=page_id).update(followers_count=F("followers_count") - 1)
+            page.refresh_from_db()
+            logger.info(f"[PAGE] Page updated successfully, page_id={page_id}")
+
+            # Delete follower from Followers
+            follower.delete()
+            logger.info(f"[PAGE] Deleted follower, page_id={page_id}")
+
+            logger.info("[PAGE] Unollowed successfully")
+            return Response(PageGetSerializer(page).data, status=200)
+
+        except Exception as e:
+            logger.error(f"[PAGE] Page was not unfollowed, page_id={page_id}, str({e})")
+            raise BaseAPIException("Page was not unfollowed")
