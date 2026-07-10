@@ -88,5 +88,5 @@ class PageDetailRemission(ComplexApiRemission):
     method_permission: dict[str, type[BasePermission]] = {
         "GET": AllowAllRoles,
         "PATCH": IsUserOwner,
-        "DELETE": [IsUserOwner, IsAdminModerator]
+        "DELETE": [IsUserOwner | IsAdminModerator]
     }

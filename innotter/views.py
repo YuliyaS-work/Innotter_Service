@@ -24,6 +24,10 @@ from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, Pag
 
 logger = logging.getLogger(__name__)
 
+#=========================================================
+# FEED
+#=========================================================
+
 class FeedAPIView(APIView):
     """
     Return a feed of posts from pages followed by the authenticated user.
@@ -60,6 +64,37 @@ class FeedAPIView(APIView):
         except Exception as e:
             logger.error(f"[FEED] Error while building feed, user_id={user_id}, str({e})")
             raise BaseAPIException()
+
+
+#=========================================================
+# PAGE
+#=========================================================
+
+def get_page_id(**kwargs) -> int | None:
+    """
+    Helper function that extracts the page_id from request path parameters.
+    Raises an error if page_id is missing.
+    """
+    page_id: int | None = kwargs.get("page_id", None)
+
+    if not page_id:
+        logger.error("[PAGE] Page was not found")
+        raise ResourceException("Page was not found")
+
+    return page_id
+
+
+def get_page(page_id: int):
+    """
+    Helper function that retrieves a Page instance by its ID.
+    Raises a ResourceException if the page does not exist.
+    """
+    try:
+        return Page.objects.get(pk=page_id)
+
+    except Page.DoesNotExist:
+        logger.error("[PAGE] Page was not found")
+        raise ResourceException("Page was not found")
 
 
 class PageCreateAPIView(APIView):
@@ -126,18 +161,10 @@ class PageDetailAPIView(APIView):
         Delete the selected page.
         The method checks permissions and removes the page from the database.
         """
-        page_id: int | None = kwargs.get("page_id", None)
+        page_id = get_page_id(**kwargs)
         logger.info(f"[PAGE] Deleting page, page_id={page_id}")
 
-        if not page_id:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
-
-        try:
-            page: Page = Page.objects.get(pk=page_id)
-        except Page.DoesNotExist:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
+        page = get_page(page_id)
 
         self.check_object_permissions(request, page)
 
@@ -175,12 +202,8 @@ class PageDetailAPIView(APIView):
         Return page info, related tags and paginated posts.
         The method builds a combined response with page data and posts.
         """
-        page_id: int | None = kwargs.get("page_id", None)
+        page_id = get_page_id(**kwargs)
         logger.info(f"[PAGE] Building a post list of a page, page_id={page_id}")
-
-        if not page_id:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
 
         try:
             page: Page = Page.objects.prefetch_related("posts", "tags").get(pk=page_id)
@@ -234,18 +257,10 @@ class PageDetailAPIView(APIView):
         The endpoint applies partial updates to a page.
         Returns the updated page.
         """
-        page_id: int | None = kwargs.get("page_id", None)
+        page_id = get_page_id(**kwargs)
         logger.info(f"[PAGE] Updating page, page_id={page_id}")
 
-        if not page_id:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
-
-        try:
-            page: Page = Page.objects.get(pk=page_id)
-        except Page.DoesNotExist:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
+        page = get_page(page_id)
 
         self.check_object_permissions(request, page)
 
@@ -293,24 +308,15 @@ class PageFollowAPIView(APIView):
         description="Follow a page by the authenticated user."
     )
     def patch(self, request: Request, **kwargs)-> Response:
-
-        page_id: int | None = kwargs.get("page_id", None)
+        page_id = get_page_id(**kwargs)
         logger.info(f"[PAGE] Following page, page_id={page_id}")
-
-        if not page_id:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
 
         # Check subscription
         if Followers.objects.filter(page_id=page_id, user_id=request.auth_user["user_id"]).exists():
             logger.warning("[PAGE] Already followed")
             raise ResourceException("Already followed")
 
-        try:
-            page: Page = Page.objects.get(pk=page_id)
-        except Page.DoesNotExist:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
+        page = get_page(page_id)
 
         # Check a page owner
         if page.user_id == request.auth_user["user_id"]:
@@ -370,13 +376,8 @@ class PageUnfollowAPIView(APIView):
         description="Unfollow a page by the authenticated user."
     )
     def patch(self, request: Request, **kwargs)-> Response:
-
-        page_id: int | None = kwargs.get("page_id", None)
+        page_id = get_page_id(**kwargs)
         logger.info(f"[PAGE] Following page, page_id={page_id}")
-
-        if not page_id:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
 
 
         follower = Followers.objects.filter(page_id=page_id, user_id=request.auth_user["user_id"]).first()
@@ -386,11 +387,7 @@ class PageUnfollowAPIView(APIView):
             logger.warning(f"[PAGE] Already unfollowed, page_id={page_id}")
             raise ResourceException("Already unfollowed")
 
-        try:
-            page: Page = Page.objects.get(pk=page_id)
-        except Page.DoesNotExist:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
+        page = get_page(page_id)
 
         # Check a page owner
         if page.user_id == request.auth_user["user_id"]:
@@ -424,7 +421,7 @@ class PageFollowersGetAPIView(APIView):
     MODERATOR: returns followers from the page with user ID of the same group.
     USER: returns followers only if they own the page.
     """
-    permission_classes = [IsUserOwner, IsAdminModerator]
+    permission_classes = [IsUserOwner | IsAdminModerator]
     serializer_class = FollowersGetSerializer
 
     @extend_schema(
@@ -440,12 +437,12 @@ class PageFollowersGetAPIView(APIView):
         summary="Get followers of a page",
     )
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        page_id: int | None = kwargs.get("page_id", None)
+        page_id = get_page_id(**kwargs)
         logger.info(f"[PAGE] Building a followers list of a page, page_id={page_id}")
 
-        if not page_id:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
+        page = get_page(page_id)
+
+        self.check_object_permissions(request, page)
 
         try:
             followers = Followers.objects.filter(page_id=page_id).all()
@@ -485,18 +482,10 @@ class PageBlockAPIView(APIView):
         description="Update a page status by admin or moderator with the same group like owner."
     )
     def patch(self, request: Request, **kwargs)-> Response:
-        page_id: int | None = kwargs.get("page_id", None)
+        page_id = get_page_id(**kwargs)
         logger.info(f"[PAGE] Updating page, page_id={page_id}")
 
-        if not page_id:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
-
-        try:
-            page: Page = Page.objects.get(pk=page_id)
-        except Page.DoesNotExist:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
+        page = get_page(page_id)
 
         self.check_object_permissions(request, page)
 
@@ -542,18 +531,10 @@ class PostCreateAPIView(APIView):
     )
     def post(self, request: Request, **kwargs) -> Response:
 
-        page_id: int | None = kwargs.get("page_id", None)
+        page_id = get_page_id(**kwargs)
         logger.info(f"[PAGE] Creating new post, page_id={page_id}")
 
-        if not page_id:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
-
-        try:
-            page: Page = Page.objects.get(pk=page_id)
-        except Page.DoesNotExist:
-            logger.error("[PAGE] Page was not found")
-            raise ResourceException("Page was not found")
+        page = get_page(page_id)
 
         self.check_object_permissions(request, page)
 
