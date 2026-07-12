@@ -24,3 +24,12 @@ class ResourceException(BaseAPIException):
     """ Exception class for error when the object is not found."""
     status_code = 404
     detail = "Resource is not found"
+
+
+class LogicException(BaseAPIException):
+    """
+    Raised when a user attempts an action that is logically forbidden
+    by business rules.
+    """
+    status_code = 403
+    detail = "This action is not allowed"
