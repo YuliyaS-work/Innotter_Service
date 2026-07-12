@@ -37,6 +37,15 @@ class TagGetSerializer(serializers.ModelSerializer):
 class PageGetSerializer(serializers.ModelSerializer):
     """Serializer for returning full page information."""
     tags = TagGetSerializer(many=True)
+    is_followed = serializers.SerializerMethodField()
+
+    def get_is_followed(self, page):
+        request = self.context.get("request")
+        return Followers.objects.filter(
+            page_id=page.id,
+            user_id=request.auth_user["user_id"],
+            group_id=request.auth_user["group_id"],
+        ).exists()
 
     class Meta:
         model = Page
@@ -52,7 +61,8 @@ class PageGetSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "tags",
-            "followers_count"
+            "followers_count",
+            "is_followed"
         ]
         read_only_fields = fields
 
@@ -127,14 +137,6 @@ class FeedSerializer(serializers.ModelSerializer):
             "updated_at",
             "likes_count"
         )
-
-
-class FollowerCreateSerializer(serializers.ModelSerializer):
-    """Serializer for follower record creating."""
-
-    class Meta:
-        model = Followers
-        fields = ["page", "user_id", "group_id"]
 
 
 class FollowersGetSerializer(serializers.ModelSerializer):
