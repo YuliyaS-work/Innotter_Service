@@ -8,6 +8,7 @@ middleware.
 import logging
 from typing import Any
 
+from django.db import models
 from django.db.models import F
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from rest_framework.request import Request
@@ -15,14 +16,43 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from innotter.exceptions.api_exceptions import BaseAPIException, ResourceException
-from innotter.models import Followers, Post, Page
+from innotter.models import Followers, Post, Page, Likes
 from innotter.pagination import StandardResultsSetPagination
 from innotter.permissions import AllowAllAuthenticatedUser, AllowAllRoles, IsUserOwner, PageDetailRemission, \
-    IsAdminModerator
+    IsAdminModerator, PostDetailRemission
 from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, PageGetSerializer, PostGetSerializer, \
-    PageWithPostsSerializer, TagGetSerializer, FollowerCreateSerializer, FollowersGetSerializer, PostCreateSerializer
+    PageWithPostsSerializer, FollowerCreateSerializer, FollowersGetSerializer, \
+    PostCreateUpdateSerializer
 
 logger = logging.getLogger(__name__)
+
+
+def get_object_id(**kwargs) -> int | None:
+    """
+    Helper function that extracts the object ID (page/post) from request path parameters.
+    Raises an error if object is missing.
+    """
+    for key, value in kwargs.items():
+        if key.endswith("_id") and value:
+            return value
+
+    logger.error("Resource was not found")
+    raise ResourceException("Resource was not found")
+
+
+
+def get_object(model: type[models.Model], obj_id: int) -> models.Model:
+    """
+    Helper function that retrieves a Page/Post instance by its ID.
+    Raises a ResourceException if object does not exist.
+    """
+    try:
+        return model.objects.get(pk=obj_id)
+
+    except model.DoesNotExist:
+        logger.error(f"[{model.__name__.upper()}] Resource was not found")
+        raise ResourceException("Resource was not found")
+
 
 #=========================================================
 # FEED
@@ -69,33 +99,6 @@ class FeedAPIView(APIView):
 #=========================================================
 # PAGE
 #=========================================================
-
-def get_page_id(**kwargs) -> int | None:
-    """
-    Helper function that extracts the page_id from request path parameters.
-    Raises an error if page_id is missing.
-    """
-    page_id: int | None = kwargs.get("page_id", None)
-
-    if not page_id:
-        logger.error("[PAGE] Page was not found")
-        raise ResourceException("Page was not found")
-
-    return page_id
-
-
-def get_page(page_id: int):
-    """
-    Helper function that retrieves a Page instance by its ID.
-    Raises a ResourceException if the page does not exist.
-    """
-    try:
-        return Page.objects.get(pk=page_id)
-
-    except Page.DoesNotExist:
-        logger.error("[PAGE] Page was not found")
-        raise ResourceException("Page was not found")
-
 
 class PageCreateAPIView(APIView):
     """
@@ -161,10 +164,10 @@ class PageDetailAPIView(APIView):
         Delete the selected page.
         The method checks permissions and removes the page from the database.
         """
-        page_id = get_page_id(**kwargs)
+        page_id = get_object_id(**kwargs)
         logger.info(f"[PAGE] Deleting page, page_id={page_id}")
 
-        page = get_page(page_id)
+        page = get_object(Page, page_id)
 
         self.check_object_permissions(request, page)
 
@@ -202,7 +205,7 @@ class PageDetailAPIView(APIView):
         Return page info, related tags and paginated posts.
         The method builds a combined response with page data and posts.
         """
-        page_id = get_page_id(**kwargs)
+        page_id = get_object_id(**kwargs)
         logger.info(f"[PAGE] Building a post list of a page, page_id={page_id}")
 
         try:
@@ -257,10 +260,10 @@ class PageDetailAPIView(APIView):
         The endpoint applies partial updates to a page.
         Returns the updated page.
         """
-        page_id = get_page_id(**kwargs)
+        page_id = get_object_id(**kwargs)
         logger.info(f"[PAGE] Updating page, page_id={page_id}")
 
-        page = get_page(page_id)
+        page = get_object(Page, page_id)
 
         self.check_object_permissions(request, page)
 
@@ -284,7 +287,7 @@ class PageDetailAPIView(APIView):
 
 class PageFollowAPIView(APIView):
     """
-    Update follower count of the page for the authenticated page owner.
+    Update follower count of the page for the authenticated users.
     Create new follower in Followers.
     Returns the updated page.
     """
@@ -308,7 +311,7 @@ class PageFollowAPIView(APIView):
         description="Follow a page by the authenticated user."
     )
     def patch(self, request: Request, **kwargs)-> Response:
-        page_id = get_page_id(**kwargs)
+        page_id = get_object_id(**kwargs)
         logger.info(f"[PAGE] Following page, page_id={page_id}")
 
         # Check subscription
@@ -316,7 +319,7 @@ class PageFollowAPIView(APIView):
             logger.warning("[PAGE] Already followed")
             raise ResourceException("Already followed")
 
-        page = get_page(page_id)
+        page = get_object(Page, page_id)
 
         # Check a page owner
         if page.user_id == request.auth_user["user_id"]:
@@ -352,7 +355,7 @@ class PageFollowAPIView(APIView):
 
 class PageUnfollowAPIView(APIView):
     """
-    Update follower count of the page for the authenticated page owner.
+    Update follower count of the page for the authenticated users.
     Delete follower from Followers.
     Returns the updated page.
     """
@@ -376,7 +379,7 @@ class PageUnfollowAPIView(APIView):
         description="Unfollow a page by the authenticated user."
     )
     def patch(self, request: Request, **kwargs)-> Response:
-        page_id = get_page_id(**kwargs)
+        page_id = get_object_id(**kwargs)
         logger.info(f"[PAGE] Following page, page_id={page_id}")
 
 
@@ -387,7 +390,7 @@ class PageUnfollowAPIView(APIView):
             logger.warning(f"[PAGE] Already unfollowed, page_id={page_id}")
             raise ResourceException("Already unfollowed")
 
-        page = get_page(page_id)
+        page = get_object(Page, page_id)
 
         # Check a page owner
         if page.user_id == request.auth_user["user_id"]:
@@ -437,10 +440,10 @@ class PageFollowersGetAPIView(APIView):
         summary="Get followers of a page",
     )
     def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
-        page_id = get_page_id(**kwargs)
+        page_id = get_object_id(**kwargs)
         logger.info(f"[PAGE] Building a followers list of a page, page_id={page_id}")
 
-        page = get_page(page_id)
+        page = get_object(Page, page_id)
 
         self.check_object_permissions(request, page)
 
@@ -482,10 +485,10 @@ class PageBlockAPIView(APIView):
         description="Update a page status by admin or moderator with the same group like owner."
     )
     def patch(self, request: Request, **kwargs)-> Response:
-        page_id = get_page_id(**kwargs)
+        page_id = get_object_id(**kwargs)
         logger.info(f"[PAGE] Updating page, page_id={page_id}")
 
-        page = get_page(page_id)
+        page = get_object(Page, page_id)
 
         self.check_object_permissions(request, page)
 
@@ -513,7 +516,7 @@ class PostCreateAPIView(APIView):
     Returns a new post data.
     """
     permission_classes = [IsUserOwner]
-    serializer_class = PostCreateSerializer
+    serializer_class = PostCreateUpdateSerializer
 
     @extend_schema(
         parameters=[
@@ -524,21 +527,21 @@ class PostCreateAPIView(APIView):
                 description="ID of the page to update"
             )
         ],
-        request=PostCreateSerializer,
+        request=PostCreateUpdateSerializer,
         responses={201: PostGetSerializer},
         summary="Create a new post",
         description="Create a post by a page owner."
     )
     def post(self, request: Request, **kwargs) -> Response:
 
-        page_id = get_page_id(**kwargs)
+        page_id = get_object_id(**kwargs)
         logger.info(f"[PAGE] Creating new post, page_id={page_id}")
 
-        page = get_page(page_id)
+        page = get_object(Page, page_id)
 
         self.check_object_permissions(request, page)
 
-        serializer = PostCreateSerializer(data=request.data)
+        serializer = PostCreateUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         try:
@@ -552,3 +555,155 @@ class PostCreateAPIView(APIView):
         except Exception as e:
             logger.error(f"[PAGE] Post was not created, srt({e})")
             raise BaseAPIException("Post was not created")
+
+# =========================================================
+# POST
+# =========================================================
+
+class PostDetailAPIView(APIView):
+    """
+    Handle operations on a single post:
+    - PATCH: update a post by admin, moderator of the same group or a page owner
+    - DELETE: delete a post by admin, moderator of the same group or a page owner
+    """
+    permission_classes = [PostDetailRemission]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="post_id",
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="Post ID for deleting"
+            )
+        ],
+        responses={
+            200: OpenApiResponse(description="Post was deleted successfully"),
+            404: OpenApiResponse(description="Post was not found")
+        },
+        summary="Delete a post",
+    )
+    def delete(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """
+        Delete the selected post.
+        The method checks permissions and removes the page from the database.
+        """
+        post_id = get_object_id(**kwargs)
+        logger.info(f"[POST] Deleting post, post_id={post_id}")
+
+        post = get_object(Post, post_id)
+
+        self.check_object_permissions(request, post.page)
+
+        try:
+            post.delete()
+            logger.info(f"[POST] Post was deleted successfully, post_id={post_id}")
+
+        except Exception as e:
+            logger.error(f"[POST] Post was not deleted, srt({e})")
+            raise BaseAPIException()
+
+        return Response({"detail": f"Deleted post, post_id={post_id}"})
+
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="post_id",
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="ID of the post to update"
+            )
+        ],
+        request=PostCreateUpdateSerializer,
+        responses={
+            200: PostGetSerializer,
+            404: OpenApiResponse(description="Post was not found")
+        },
+        summary="Update a post",
+        description="Apply partial updates to a post owned by admin, moderator of the same group or a page owner."
+    )
+    def patch(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """
+        Update post fields for admin, moderator of the same group or a page owner.
+        The endpoint applies partial updates to a post.
+        Returns the updated post.
+        """
+        post_id = get_object_id(**kwargs)
+        logger.info(f"[POST] Updating page, post_id={post_id}")
+
+        post = get_object(Post, post_id)
+
+        self.check_object_permissions(request, post.page)
+
+        serializer = PostCreateUpdateSerializer(
+            post,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            post = serializer.save()
+
+            logger.info("[POST] Post updated successfully")
+
+            return Response(PostGetSerializer(post).data, status=200)
+        except Exception as e:
+            logger.error(f"[POST] Post was not updated, srt({e})")
+            raise BaseAPIException("Post was not updated")
+
+
+class PostLikeUnlikeAPIView(APIView):
+    """
+    Update like count of the post for the authenticated users.
+    Create/delete like in Likes.
+    Returns the updated post.
+    """
+    permission_classes = [AllowAllAuthenticatedUser]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="post_id",
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="ID of the post to update"
+            )
+        ],
+        responses={
+            200: PostGetSerializer,
+            404: OpenApiResponse(description="Post was not found")
+        },
+        summary="Like/unlike a post",
+        description="Like/unlike a post by the authenticated user."
+    )
+    def patch(self, request: Request, **kwargs)-> Response:
+        post_id: int = get_object_id(**kwargs)
+        logger.info(f"[POST] Updating post likes, post_id={post_id}")
+
+        post = get_object(Post, post_id)
+
+        self.check_object_permissions(request, post)
+
+        try:
+            # Check and update like
+            like = Likes.objects.filter(post_id=post_id, user_id=request.auth_user["user_id"]).first()
+            if like:
+                # Decreasing likes count
+                like.delete()
+                Post.objects.filter(pk=post_id).update(likes_count=F("likes_count") - 1)
+                logger.info(f"[POST] Deleted like and updated likes count, post_id={post_id}")
+            else:
+                # Increasing likes count
+                Likes.objects.create(post_id=post_id, user_id=request.auth_user["user_id"])
+                Post.objects.filter(pk=post_id).update(likes_count=F("likes_count") + 1)
+                logger.info(f"[POST] Created new like and updated likes count, post_id={post_id}")
+
+            post.refresh_from_db()
+
+            return Response(PostGetSerializer(post, context={"request": request}).data, status=200)
+
+        except Exception as e:
+            logger.error(f"[POST] Error to like/unlike post, post_id={post_id}, str({e})")
+            raise BaseAPIException("Error to like/unlike post")

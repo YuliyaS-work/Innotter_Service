@@ -88,5 +88,13 @@ class PageDetailRemission(ComplexApiRemission):
     method_permission: dict[str, type[BasePermission]] = {
         "GET": AllowAllRoles,
         "PATCH": IsUserOwner,
-        "DELETE": [IsUserOwner | IsAdminModerator]
+        "DELETE": IsUserOwner | IsAdminModerator
+    }
+
+
+class PostDetailRemission(ComplexApiRemission):
+    """Combined permission class for PageDetailApiView endpoint"""
+    method_permission: dict[str, type[BasePermission]] = {
+        "PATCH": IsUserOwner | IsAdminModerator,
+        "DELETE": IsUserOwner | IsAdminModerator
     }
