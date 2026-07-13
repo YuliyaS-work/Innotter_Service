@@ -13,12 +13,12 @@ from rest_framework.request import Request
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
-from innotter.exceptions.api_exceptions import BaseAPIException, ResourceException
+from innotter.exceptions.api_exceptions import ResourceException
 from innotter.models import Followers, Post, Page
 from innotter.pagination import StandardResultsSetPagination
-from innotter.permissions import AllowAllAuthenticatedUser, AllowAllRoles, IsUserOwner, PageDetailRemission
+from innotter.permissions import AllowAllAuthenticatedUser, PageDetailRemission
 from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, PageGetSerializer, PostGetSerializer, \
-    PageWithPostsSerializer, TagGetSerializer
+    PageWithPostsSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -41,23 +41,19 @@ class FeedAPIView(APIView):
         user_id: int = self.request.auth_user["user_id"]
         logger.info(f"[FEED] Request received, user_id={user_id}")
 
-        try:
-            followed_pages = Followers.objects.filter(
-                user_id=user_id
-            ).values_list("page_id")
+        followed_pages = Followers.objects.filter(
+            user_id=user_id
+        ).values_list("page_id")
 
-            post_list = Post.objects.filter(page_id__in=followed_pages)
-            post_list = post_list.select_related("page")    # post list with data page
-            post_list = post_list.prefetch_related("page__tags").order_by("-created_at")    # ordered post list with page tags
+        post_list = Post.objects.filter(page_id__in=followed_pages)
+        post_list = post_list.select_related("page")    # post list with data page
+        post_list = post_list.prefetch_related("page__tags").order_by("-created_at")    # ordered post list with page tags
 
-            serializer = self.serializer_class(post_list, many=True)
+        serializer = self.serializer_class(post_list, many=True)
 
-            logger.info(f"[FEED] Response ready, user_id={user_id}")
-            return Response(serializer.data)
+        logger.info(f"[FEED] Response ready, user_id={user_id}")
 
-        except Exception as e:
-            logger.error(f"[FEED] Error while building feed, user_id={user_id}, str({e})")
-            raise BaseAPIException()
+        return Response(serializer.data)
 
 
 class PageCreateAPIView(APIView):
@@ -81,18 +77,14 @@ class PageCreateAPIView(APIView):
         serializer = PageCreateUpdateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        try:
-            page = serializer.save(
-                user_id=request.auth_user["user_id"],
-                group_id=request.auth_user["group_id"]
-            )
+        page = serializer.save(
+            user_id=request.auth_user["user_id"],
+            group_id=request.auth_user["group_id"]
+        )
 
-            logger.info("[PAGE] Page created successfully")
+        logger.info("[PAGE] Page created successfully")
 
-            return Response(PageGetSerializer(page).data, status=201)
-        except Exception as e:
-            logger.error(f"[PAGE] Page was not created, srt({e})")
-            raise BaseAPIException()
+        return Response(PageGetSerializer(page).data, status=201)
 
 
 class PageDetailAPIView(APIView):
@@ -139,13 +131,9 @@ class PageDetailAPIView(APIView):
 
         self.check_object_permissions(request, page)
 
-        try:
-            page.delete()
-            logger.info(f"[PAGE] Page was deleted successfully, page_id={page_id}")
+        page.delete()
 
-        except Exception as e:
-            logger.error(f"[PAGE] Page was not deleted, srt({e})")
-            raise BaseAPIException()
+        logger.info(f"[PAGE] Page was deleted successfully, page_id={page_id}")
 
         return Response({"detail": f"Deleted page, page_id={page_id}"})
 
@@ -182,31 +170,28 @@ class PageDetailAPIView(APIView):
 
         try:
             page: Page = Page.objects.prefetch_related("posts", "tags").get(pk=page_id)
-            post_list = page.posts.all().order_by("-created_at")
-
-            paginator= StandardResultsSetPagination()
-            paginated_post_list = paginator.paginate_queryset(post_list, request)
-
-            post_response = paginator.get_paginated_response(
-                PostGetSerializer(paginated_post_list, many=True).data
-            ).data
-
-            # data tags are included in "page"
-            data_response = {
-                "page": PageGetSerializer(page).data,
-                "posts": post_response
-            }
-
-            logger.info(f"[PAGE] Post list was built successfully, page_id={page_id}")
-            return Response(data_response)
-
         except Page.DoesNotExist:
             logger.error("[PAGE] Page was not found")
             raise ResourceException("Page was not found")
 
-        except Exception as e:
-            logger.error(f"[PAGE] Error while building post list, page_id={page_id}, srt({e})")
-            raise BaseAPIException()
+        post_list = page.posts.all().order_by("-created_at")
+
+        paginator= StandardResultsSetPagination()
+        paginated_post_list = paginator.paginate_queryset(post_list, request)
+
+        post_response = paginator.get_paginated_response(
+            PostGetSerializer(paginated_post_list, many=True).data
+        ).data
+
+        # data tags are included in "page"
+        data_response = {
+            "page": PageGetSerializer(page).data,
+            "posts": post_response
+        }
+
+        logger.info(f"[PAGE] Post list was built successfully, page_id={page_id}")
+
+        return Response(data_response)
 
 
     @extend_schema(
@@ -254,12 +239,8 @@ class PageDetailAPIView(APIView):
         )
         serializer.is_valid(raise_exception=True)
 
-        try:
-            page = serializer.save()
+        page = serializer.save()
 
-            logger.info("[PAGE] Page updated successfully")
+        logger.info("[PAGE] Page updated successfully")
 
-            return Response(PageGetSerializer(page).data, status=200)
-        except Exception as e:
-            logger.error(f"[PAGE] Page was not updated, srt({e})")
-            raise BaseAPIException()
+        return Response(PageGetSerializer(page).data, status=200)
