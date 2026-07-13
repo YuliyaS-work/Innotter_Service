@@ -26,12 +26,21 @@ class PageCreateUpdateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["created_at"]
 
+class TagCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating a new tag."""
+
+    class Meta:
+        model = Tag
+        fields = ["name"]
+
 
 class TagGetSerializer(serializers.ModelSerializer):
     """Serializer for returning tag information."""
+
     class Meta:
         model = Tag
         fields = ["id", "name"]
+        read_only_fields = fields
 
 
 class PageGetSerializer(serializers.ModelSerializer):

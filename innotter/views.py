@@ -16,12 +16,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from innotter.exceptions.api_exceptions import ResourceException, LogicException
-from innotter.models import Followers, Post, Page, Likes
+from innotter.models import Followers, Post, Page, Likes, Tag
 from innotter.pagination import StandardResultsSetPagination
 from innotter.permissions import AllowAllAuthenticatedUser, IsUserOwner, PageDetailRemission, \
     IsAdminModerator, PostDetailRemission
 from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, PageGetSerializer, PostGetSerializer, \
-    PageWithPostsSerializer, FollowersGetSerializer, PostCreateUpdateSerializer
+    PageWithPostsSerializer, FollowersGetSerializer, PostCreateUpdateSerializer, TagCreateSerializer, TagGetSerializer
 
 logger = logging.getLogger(__name__)
 
@@ -179,13 +179,15 @@ class PageDetailAPIView(APIView):
                 name="page",
                 type=int,
                 location=OpenApiParameter.QUERY,
-                description="Page number"
+                description="Page number",
+                default=1
             ),
             OpenApiParameter(
                 name="page_size",
                 type=int,
                 location=OpenApiParameter.QUERY,
-                description="Number of posts per page"
+                description="Number of posts per page",
+                default=30
             )
         ],
         responses=PageWithPostsSerializer,
@@ -591,3 +593,76 @@ class PostLikeUnlikeAPIView(APIView):
         post.refresh_from_db()
 
         return Response(PostGetSerializer(post, context={"request": request}).data, status=200)
+
+# =========================================================
+# POST
+# =========================================================
+
+class TagDetailAPIView(APIView):
+    """
+    Handle operations on a single tag:
+    - POST: create a new tag by an any authenticated user.
+    - GET: get a tag list with pagination by an any authenticated user.
+    """
+    permission_classes = [AllowAllAuthenticatedUser]
+
+    @extend_schema(
+        request=TagCreateSerializer,
+        responses={201: TagGetSerializer},
+        summary="Create a new tag",
+        description="Create a new tag by an any authenticated user."
+    )
+    def post(self, request: Request, **kwargs) -> Response:
+        """
+        Create a new tag by an any authenticated user.
+        The endpoint validates input data and stores a new tag in the database.
+        Returns a new tag data.
+        """
+        logger.info("[TAG] Creating a new tag")
+
+        serializer = TagCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        tag = serializer.save()
+
+        logger.info("[TAG] A new tag created successfully")
+
+        return Response(TagGetSerializer(tag).data, status=201)
+
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="page",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Page number",
+                default = 1
+            ),
+            OpenApiParameter(
+                name="page_size",
+                type=int,
+                location=OpenApiParameter.QUERY,
+                description="Number of tags per page",
+                default = 30
+            )
+        ],
+        responses=PageWithPostsSerializer,
+        summary="Get list of tags",
+    )
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """
+        Returns a paginated list of tags (default: 30 tags per page).
+        """
+        tags = Tag.objects.all()
+
+        paginator= StandardResultsSetPagination()
+        paginated_tag_list = paginator.paginate_queryset(tags, request)
+
+        tags_response = paginator.get_paginated_response(
+            TagGetSerializer(paginated_tag_list, many=True).data
+        ).data
+
+        logger.info(f"[TAG] A tag list was built successfully")
+
+        return Response(tags_response)
