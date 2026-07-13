@@ -27,6 +27,14 @@ class Page(models.Model):
         verbose_name_plural = "Pages"
         verbose_name = "Page"
         ordering = ["name"]
+        indexes = [
+            models.Index(fields=["user_id"]),
+            models.Index(fields=["group_id"]),
+            models.Index(fields=["is_blocked"]),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.name}( {self.id})'
 
 
 class Post(models.Model):
@@ -42,16 +50,23 @@ class Post(models.Model):
         verbose_name_plural = "Posts"
         verbose_name = "Post"
         ordering = ["likes"]
+        indexes = [models.Index(fields=["page", "created_at"])]
+
+    def __str__(self) -> str:
+        return f'post {self.id}, page {self.page.id}'
 
 
 class Tag(models.Model):
     """ Django model for a tag that is linked to pages."""
-    name = models.CharField(max_length=30, verbose_name="tag name")
+    name = models.CharField(max_length=30, unique=True, verbose_name="tag name")
 
     class Meta:
         verbose_name_plural = "Tags"
         verbose_name = "Tag"
         ordering = ["name"]
+
+    def __str__(self) -> str:
+        return f'{self.name}'
 
 
 class Followers(models.Model):
@@ -63,7 +78,13 @@ class Followers(models.Model):
     class Meta:
         verbose_name_plural = "Followers"
         verbose_name = "Follower"
+        indexes = [
+            models.Index(fields=["user_id"]),
+            models.Index(fields=["user_id", "page_id"]),
+        ]
 
+    def __str__(self) -> str:
+        return f'{self.id}'
 
 class Likes(models.Model):
     """ Django model stores users that like a page."""
@@ -73,3 +94,9 @@ class Likes(models.Model):
     class Meta:
         verbose_name_plural = "Likes"
         verbose_name = "Like"
+        indexes = [
+            models.Index(fields=["post", "user_id"]),
+        ]
+
+    def __str__(self) -> str:
+        return f'{self.id}'
