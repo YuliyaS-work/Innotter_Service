@@ -27,9 +27,6 @@ class ResourceException(BaseAPIException):
 
 
 class LogicException(BaseAPIException):
-    """
-    Raised when a user attempts an action that is logically forbidden
-    by business rules.
-    """
-    status_code = 403
+    """Raised when a user action violates a business logic."""
+    status_code = 400
     detail = "This action is not allowed"

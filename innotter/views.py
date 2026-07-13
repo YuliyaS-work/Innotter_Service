@@ -51,7 +51,7 @@ def get_object(model: type[models.Model], obj_id: int) -> models.Model:
         return model.objects.get(pk=obj_id)
 
     except model.DoesNotExist:
-        logger.error(f"[{model.__name__.upper()}] Resource was not found")
+        logger.warning(f"[{model.__name__.upper()}] Resource was not found, model={model.__name__.upper()}, id={obj_id}")
         raise ResourceException("Resource was not found")
 
 
