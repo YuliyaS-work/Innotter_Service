@@ -67,7 +67,7 @@ class IsAdminModerator(BasePermission):
         return check_access(request,obj, allow_admin=True, allow_moderator=True)
 
 
-class ComplexApiRemission(BasePermission):
+class ComplexApiPermission(BasePermission):
     """Combined permission class for different HTTP methods in a single endpoint."""
     method_permission: dict[str, type[BasePermission]] = {}
 
@@ -83,7 +83,7 @@ class ComplexApiRemission(BasePermission):
         return permission_class().has_object_permission(request, view, obj)
 
 
-class PageDetailRemission(ComplexApiRemission):
+class PageDetailPermission(ComplexApiPermission):
     """Combined permission class for PageDetailApiView endpoint"""
     method_permission: dict[str, type[BasePermission]] = {
         "GET": AllowAllRoles,
@@ -92,9 +92,19 @@ class PageDetailRemission(ComplexApiRemission):
     }
 
 
-class PostDetailRemission(ComplexApiRemission):
+class PostDetailPermission(ComplexApiPermission):
     """Combined permission class for PageDetailApiView endpoint"""
     method_permission: dict[str, type[BasePermission]] = {
         "PATCH": IsUserOwner | IsAdminModerator,
         "DELETE": IsUserOwner | IsAdminModerator
+    }
+
+
+class PageImageDetailPermission(ComplexApiPermission):
+    """Combined permission class for PageImageDetailApiView endpoint"""
+    method_permission: dict[str, type[BasePermission]] = {
+        "GET": AllowAllAuthenticatedUser,
+        "DELETE": IsUserOwner,
+        "POST": IsUserOwner,
+        "PUT": IsUserOwner
     }

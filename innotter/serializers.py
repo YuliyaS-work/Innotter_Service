@@ -154,3 +154,15 @@ class FollowersGetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Followers
         fields = ["id", "page", "user_id", "group_id"]
+
+
+class PageImageUrlSerializer(serializers.Serializer):
+    """Serializer for getting  and saving a page image path into the database."""
+    key = serializers.CharField()
+
+
+class PageImageUploadSerializer(serializers.Serializer):
+    """Serializer for the presigned POST response used to upload a page image to S3."""
+    key = serializers.CharField()
+    url = serializers.CharField()
+    fields = serializers.DictField()

@@ -23,10 +23,17 @@ class BaseAPIException(APIException):
 class ResourceException(BaseAPIException):
     """ Exception class for error when the object is not found."""
     status_code = 404
-    detail = "Resource is not found"
+    detail: str = "Resource is not found"
 
 
 class LogicException(BaseAPIException):
     """Raised when a user action violates a business logic."""
     status_code = 400
-    detail = "This action is not allowed"
+    detail: str = "This action is not allowed"
+
+
+class S3StorageError(BaseAPIException):
+    """
+    Raised when errors exist while working with s3 storage.
+    """
+    detail: str = "Error while working with s3 storage."

@@ -37,6 +37,10 @@ services:
         - DB_USER=${DB_USER}
         - DB_PASSWORD=${DB_PASSWORD}
         - SECRET_KEY=${SECRET_KEY}
+        - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+        - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+        - AWS_REGION=${AWS_REGION}
+        - BUCKET_NAME=${BUCKET_NAME}
       depends_on:
         db_ints:
           condition: service_healthy

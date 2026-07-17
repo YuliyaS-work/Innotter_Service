@@ -1,8 +1,14 @@
 """
 API views for the Innotter service.
 
-page management, feed generation, following/unfollowing operations, and other
-user‑driven interactions. All views rely on JWT authentication performed by the
+This module provides endpoints for:
+- feed generation,
+- page management (creation, retrieval, modification, blocking, follow/unfollow actions),
+- post management (creation, deletion, modification and like/unlike actions),
+- tag management (creation, retrieval),
+- page image management via S3 (retrieval, upload, confirm, delete).
+
+All endpoints rely on JWT authentication performed by the
 middleware.
 """
 import logging
@@ -15,18 +21,21 @@ from rest_framework.request import Request
 from rest_framework.views import APIView
 from rest_framework.response import Response
 
+from config import settings
 from innotter.exceptions.api_exceptions import ResourceException, LogicException
 from innotter.models import Followers, Post, Page, Likes, Tag
 from innotter.pagination import StandardResultsSetPagination
-from innotter.permissions import AllowAllAuthenticatedUser, IsUserOwner, PageDetailRemission, \
-    IsAdminModerator, PostDetailRemission
+from innotter.permissions import AllowAllAuthenticatedUser, IsUserOwner, PageDetailPermission, \
+    IsAdminModerator, PostDetailPermission, PageImageDetailPermission
+from innotter.s3_service import delete_page_image, generate_page_image_s3_path, create_presigned_post_for_page_image
 from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, PageGetSerializer, PostGetSerializer, \
-    PageWithPostsSerializer, FollowersGetSerializer, PostCreateUpdateSerializer, TagCreateSerializer, TagGetSerializer
+    PageWithPostsSerializer, FollowersGetSerializer, PostCreateUpdateSerializer, TagCreateSerializer, TagGetSerializer, \
+    PageImageUrlSerializer, PageImageUploadSerializer
 
 logger = logging.getLogger(__name__)
 
 
-def get_object_id(**kwargs) -> int | None:
+def get_object_id(**kwargs) -> int:
     """
     Helper function that extracts the object ID (page/post) from request path parameters.
     Raises an error if object is missing.
@@ -137,7 +146,7 @@ class PageDetailAPIView(APIView):
     - PATCH: update a page by a page owner
     - DELETE: delete a page by admin, moderator of the same group or a page owner
     """
-    permission_classes = [PageDetailRemission]
+    permission_classes = [PageDetailPermission]
 
     @extend_schema(
         parameters=[
@@ -392,7 +401,7 @@ class PageBlockAPIView(APIView):
         summary="Update a page status",
         description="Update a page status by admin or moderator with the same group like owner."
     )
-    def patch(self, request: Request, **kwargs)-> Response:
+    def patch(self, request: Request, **kwargs: Any)-> Response:
         page_id = get_object_id(**kwargs)
         logger.info(f"[PAGE] Updating page, page_id={page_id}")
 
@@ -436,7 +445,7 @@ class PostCreateAPIView(APIView):
         summary="Create a new post",
         description="Create a post by a page owner."
     )
-    def post(self, request: Request, **kwargs) -> Response:
+    def post(self, request: Request, **kwargs: Any) -> Response:
 
         page_id = get_object_id(**kwargs)
         logger.info(f"[PAGE] Creating new post, page_id={page_id}")
@@ -456,6 +465,171 @@ class PostCreateAPIView(APIView):
 
         return Response(PostGetSerializer(post, context={"request": request}).data, status=201)
 
+
+class PageImageDetailAPI(APIView):
+    """
+    API endpoint for managing a page image stored in S3.
+    Handle operations:
+    - GET: Retrieve the S3 key of the current page image.
+    - POST: Generate a presigned POST for uploading a new image directly to S3.
+    - PUT: Confirm the uploaded image by saving its S3 key into the database.
+    - DELETE: Remove the image from S3 and clear its key from the database.
+    """
+    permission_classes = [PageImageDetailPermission]
+
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="page_id",
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="ID of the page"
+            ),
+        ],
+        responses={200: PageImageUrlSerializer},
+        summary="Get a page image",
+    )
+    def get(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """Return the S3 key (image_url field in Page model) of the page image stored in the database."""
+
+        page_id = get_object_id(**kwargs)
+        logger.info(f"[PAGE] Getting a page image, page_id={page_id}")
+
+        page = get_object(Page, page_id)
+
+        if page.image_url is None:
+            raise ResourceException("A path to the page image in the database is not exist.")
+
+        logger.info("[PAGE] A page image was loaded successfully")
+
+        return Response(PageImageUrlSerializer({"key": page.image_url}).data, status = 200)
+
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="page_id",
+                type=int,
+                location=OpenApiParameter.PATH,
+                description="Page ID for deleting"
+            )
+        ],
+        responses={
+            200: OpenApiResponse(description="Page was deleted successfully"),
+            404: OpenApiResponse(description="Page was not found")
+        },
+        summary="Delete a page image",
+    )
+    def delete(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        """
+        Delete the page image from S3 and remove its key from the database.
+
+        The endpoint:
+        - deletes the image object from S3,
+        - clears the image_url field in the Page model,
+        - returns the updated Page representation.
+        """
+
+        page_id = get_object_id(**kwargs)
+        logger.info(f"[PAGE] Deleting a page image, page_id={page_id}")
+
+        page = get_object(Page, page_id)
+
+        if page.image_url is None:
+            raise ResourceException("A path to the page image in the database is not exist.")
+
+        self.check_object_permissions(request, page)
+
+        delete_page_image(settings.BUCKET_NAME, page.image_url)
+
+        page.image_url = None
+        page.save(update_fields=["image_url"])
+        page.refresh_from_db()
+
+        logger.info("[PAGE] A page image was deleted")
+
+        return Response(PageGetSerializer(page, context={"request": request}).data, status=200)
+
+
+    @extend_schema(
+        request=None,
+        responses={201: PageImageUploadSerializer},
+        summary="Upload a new page image",
+        description="Upload a new page image by a page owner."
+    )
+    def post(self, request: Request, **kwargs: Any):
+        """
+        Generate a presigned POST for uploading a new page image to S3.
+
+        The client must upload the file directly to S3 using these fields.
+        The endpoint returns:
+        - the S3 upload URL,
+        - required form fields,
+        - the S3 key where the image will be stored.
+        """
+
+        page_id = get_object_id(**kwargs)
+        logger.info(f"[PAGE] Uploading a page image to s3 storage, page_id={page_id}")
+
+        page = get_object(Page, page_id)
+
+        self.check_object_permissions(request, page)
+
+        image_s3_path = generate_page_image_s3_path(page_id)
+
+        post = create_presigned_post_for_page_image(
+            settings.BUCKET_NAME,
+            image_s3_path,
+            expiration=3600
+        )
+
+        post_response = {
+            "key": image_s3_path,
+            "url": post["url"],
+            "fields": post["fields"]
+        }
+
+        logger.info("[PAGE] A page image was sent to s3 storage")
+
+        return Response(post_response, status=201)
+
+
+    @extend_schema(
+        request=PageImageUrlSerializer,
+        responses={201: PageGetSerializer},
+        summary="Confirm a new page image",
+        description="Confirm a new page image by a page owner and save it into the database."
+    )
+    def put(self, request: Request, **kwargs: Any):
+        """
+        Confirm the uploaded page image and save its S3 key into the database.
+
+        The client sends the S3 key received from the presigned POST upload.
+        The endpoint:
+        - deletes the previous image from S3 (if exists),
+        - saves the new key into the Page model,
+        - returns the updated Page representation.
+        """
+        page_id = get_object_id(**kwargs)
+        logger.info(f"[PAGE] Confirming a new page image, page_id={page_id}")
+
+        page = get_object(Page, page_id)
+        self.check_object_permissions(request, page)
+
+        serializer = PageImageUrlSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        new_image_url = serializer.validated_data["key"]
+
+        if page.image_url:
+            delete_page_image(settings.BUCKET_NAME, page.image_url)
+
+        page.image_url = new_image_url
+        page.save(update_fields=["image_url"])
+        page.refresh_from_db()
+
+        return Response(PageGetSerializer(page, context={"request": request}).data, status=200)
+
 # =========================================================
 # POST
 # =========================================================
@@ -466,7 +640,7 @@ class PostDetailAPIView(APIView):
     - PATCH: update a post by admin, moderator of the same group or a page owner
     - DELETE: delete a post by admin, moderator of the same group or a page owner
     """
-    permission_classes = [PostDetailRemission]
+    permission_classes = [PostDetailPermission]
 
     @extend_schema(
         parameters=[
@@ -569,7 +743,7 @@ class PostLikeUnlikeAPIView(APIView):
         summary="Like/unlike a post",
         description="Like/unlike a post by the authenticated user."
     )
-    def patch(self, request: Request, **kwargs)-> Response:
+    def patch(self, request: Request, **kwargs: Any)-> Response:
         post_id: int = get_object_id(**kwargs)
         logger.info(f"[POST] Updating post likes, post_id={post_id}")
 
@@ -595,7 +769,7 @@ class PostLikeUnlikeAPIView(APIView):
         return Response(PostGetSerializer(post, context={"request": request}).data, status=200)
 
 # =========================================================
-# POST
+# TAG
 # =========================================================
 
 class TagDetailAPIView(APIView):
@@ -612,7 +786,7 @@ class TagDetailAPIView(APIView):
         summary="Create a new tag",
         description="Create a new tag by an any authenticated user."
     )
-    def post(self, request: Request, **kwargs) -> Response:
+    def post(self, request: Request) -> Response:
         """
         Create a new tag by an any authenticated user.
         The endpoint validates input data and stores a new tag in the database.
@@ -663,6 +837,6 @@ class TagDetailAPIView(APIView):
             TagGetSerializer(paginated_tag_list, many=True).data
         ).data
 
-        logger.info(f"[TAG] A tag list was built successfully")
+        logger.info("[TAG] A tag list was built successfully")
 
         return Response(tags_response)

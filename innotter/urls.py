@@ -6,7 +6,7 @@ from django.urls import path
 
 from innotter.views import FeedAPIView, PageCreateAPIView, PageDetailAPIView, PageFollowUnfollowAPIView, \
     PageFollowersGetAPIView, PageBlockAPIView, PostCreateAPIView, PostDetailAPIView, PostLikeUnlikeAPIView, \
-    TagDetailAPIView
+    TagDetailAPIView, PageImageDetailAPI
 
 urlpatterns = [
     path("api/feed/", FeedAPIView.as_view(), name="user_feed"),
@@ -16,6 +16,7 @@ urlpatterns = [
     path("api/page/<int:page_id>/followers/", PageFollowersGetAPIView.as_view(), name="page_followers"),
     path("api/page/<int:page_id>/block/", PageBlockAPIView.as_view(), name="block_page"),
     path("api/page/<int:page_id>/post/", PostCreateAPIView.as_view(), name="new_post"),
+    path("api/page/<int:page_id>/image/", PageImageDetailAPI.as_view(), name="page_image"),
     path("api/post/<int:post_id>/", PostDetailAPIView.as_view(), name="detail_post"),
     path("api/post/<int:post_id>/like", PostLikeUnlikeAPIView.as_view(), name="like_unlike_post"),
     path("api/tag", TagDetailAPIView.as_view(), name="detail_tag"),
