@@ -43,6 +43,10 @@ services:
         - REDIS_HOST=${REDIS_HOST}
         - REDIS_PASSWORD=${REDIS_PASSWORD}
         - REDIS_PORT=${REDIS_PORT}
+        - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+        - CELERY_BROKER_TRANSPORT_OPTIONS=${CELERY_BROKER_TRANSPORT_OPTIONS}
+        - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+        - CELERYD_POOL=${CELERYD_POOL}
       depends_on:
         db_ints:
           condition: service_healthy
@@ -52,11 +56,43 @@ services:
         - inner-net
 
 
+    celery_worker:
+        build: .
+#        command: celery -A config worker -l info
+        command: python -m celery -A config worker -l info
+        environment:
+          - DB_ENGINE=${DB_ENGINE}
+          - DB_HOST=${DB_HOST}
+          - DB_PORT=${DB_PORT}
+          - DB_NAME=${DB_NAME}
+          - DB_USER=${DB_USER}
+          - DB_PASSWORD=${DB_PASSWORD}
+          - SECRET_KEY=${SECRET_KEY}
+          - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+          - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+          - AWS_REGION=${AWS_REGION}
+          - BUCKET_NAME=${BUCKET_NAME}
+          - REDIS_HOST=${REDIS_HOST}
+          - REDIS_PASSWORD=${REDIS_PASSWORD}
+          - REDIS_PORT=${REDIS_PORT}
+          - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+          - CELERY_BROKER_TRANSPORT_OPTIONS=${CELERY_BROKER_TRANSPORT_OPTIONS}
+          - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+          - CELERYD_POOL=${CELERYD_POOL}
+        depends_on:
+          - ints_app
+          - redis_ints
+        networks:
+          - inner-net
+
+
     redis_ints:
-      image: redis:7
+      image: redis:latest
       container_name: redis_innotter
       restart: unless-stopped
       command: redis-server --bind 0.0.0.0 --requirepass ${REDIS_PASSWORD} --appendonly yes
+      networks:
+        - inner-net
 
 
 volumes:

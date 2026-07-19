@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/6.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.0/ref/settings/
 """
-
+import json
 from pathlib import Path
 
 from decouple import config
@@ -211,7 +211,9 @@ BUCKET_NAME=config('BUCKET_NAME')
 
 # celery
 CELERY_BROKER_URL = config('CELERY_BROKER_URL')
-CELERY_BROKER_TRANSPORT_OPTIONS = config('CELERY_BROKER_TRANSPORT_OPTIONS')
+CELERY_BROKER_TRANSPORT_OPTIONS = json.loads(
+    config("CELERY_BROKER_TRANSPORT_OPTIONS", "{}")
+)
 CELERY_RESULT_BACKEND =config('CELERY_RESULT_BACKEND')
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'

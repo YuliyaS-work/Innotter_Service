@@ -18,6 +18,7 @@ from typing import Any
 from celery.worker.control import revoke
 from django.db import models
 from django.db.models import F
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
 from rest_framework.request import Request
 from rest_framework.views import APIView
@@ -417,7 +418,7 @@ class PageBlockAPIView(APIView):
 
             # Remove task if it exists
             if page.task_id:
-                revoke(page.task_id, terminate=True)
+                revoke(self, page.task_id, terminate=True)
                 page.task_id = None
 
             page.is_blocked = False
