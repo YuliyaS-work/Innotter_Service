@@ -12,8 +12,10 @@ All endpoints rely on JWT authentication performed by the
 middleware.
 """
 import logging
+from datetime import timezone, timedelta
 from typing import Any
 
+from celery.worker.control import revoke
 from django.db import models
 from django.db.models import F
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiResponse
@@ -31,6 +33,7 @@ from innotter.s3_service import delete_page_image, generate_page_image_s3_path, 
 from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, PageGetSerializer, PostGetSerializer, \
     PageWithPostsSerializer, FollowersGetSerializer, PostCreateUpdateSerializer, TagCreateSerializer, TagGetSerializer, \
     PageImageUrlSerializer, PageImageUploadSerializer
+from innotter.tasks import unblock_page
 
 logger = logging.getLogger(__name__)
 
@@ -411,9 +414,25 @@ class PageBlockAPIView(APIView):
 
         # Update page status
         if page.is_blocked:
-            Page.objects.filter(pk=page_id).update(is_blocked=False)
+
+            # Remove task if it exists
+            if page.task_id:
+                revoke(page.task_id, terminate=True)
+                page.task_id = None
+
+            page.is_blocked = False
+            page.unblock_date = None
+
+            page.save(update_fields=["is_blocked", "unblock_date", "task_id"])
         else:
-            Page.objects.filter(pk=page_id).update(is_blocked=True)
+            page.is_blocked = True
+            page.unblock_date = timezone.now() + timedelta(minutes=5) # for testing
+            # page.unblock_date = timezone.now() + timedelta(hours=24) for production
+
+            task = unblock_page.apply_async(args=[page.id], countdown=5*60)
+            page.task_id = task.id
+
+            page.save(update_fields=["is_blocked", "unblock_date", "task_id"])
 
         page.refresh_from_db()
 

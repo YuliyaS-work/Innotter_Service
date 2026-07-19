@@ -21,7 +21,6 @@ services:
         - inner-net
 
 
-
     ints_app:
       build: .
       command: >
@@ -41,6 +40,9 @@ services:
         - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
         - AWS_REGION=${AWS_REGION}
         - BUCKET_NAME=${BUCKET_NAME}
+        - REDIS_HOST=${REDIS_HOST}
+        - REDIS_PASSWORD=${REDIS_PASSWORD}
+        - REDIS_PORT=${REDIS_PORT}
       depends_on:
         db_ints:
           condition: service_healthy
@@ -48,6 +50,14 @@ services:
         - "8002:8002"
       networks:
         - inner-net
+
+
+    redis_ints:
+      image: redis:7
+      container_name: redis_innotter
+      restart: unless-stopped
+      command: redis-server --bind 0.0.0.0 --requirepass ${REDIS_PASSWORD} --appendonly yes
+
 
 volumes:
   mysql-data:
