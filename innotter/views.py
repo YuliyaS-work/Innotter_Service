@@ -411,11 +411,11 @@ class PageBlockAPIView(APIView):
 
         # Update page status
         if page.is_blocked:
-            Page.objects.filter(pk=page_id).update(is_blocked=False)
+            page.is_blocked = False
+            page.save(update_fields=["is_blocked"])
         else:
-            Page.objects.filter(pk=page_id).update(is_blocked=True)
-
-        page.refresh_from_db()
+            page.is_blocked = True
+            page.save(update_fields=["is_blocked"])
 
         logger.info(f"[PAGE] Page updated successfully, page_id={page_id}")
 
