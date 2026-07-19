@@ -121,7 +121,7 @@ class PageCreateAPIView(APIView):
 
         logger.info("[PAGE] Page created successfully")
 
-        return Response(PageGetSerializer(page).data, status=201)
+        return Response(PageGetSerializer(page, context={"request": request}).data, status=201)
 
 
 class PageDetailAPIView(APIView):
@@ -210,7 +210,7 @@ class PageDetailAPIView(APIView):
 
         # data tags are included in "page"
         data_response = {
-            "page": PageGetSerializer(page).data,
+            "page": PageGetSerializer(page, context={"request": request}).data,
             "posts": post_response
         }
 
@@ -260,7 +260,7 @@ class PageDetailAPIView(APIView):
 
         logger.info("[PAGE] Page updated successfully")
 
-        return Response(PageGetSerializer(page).data, status=200)
+        return Response(PageGetSerializer(page, context={"request": request}).data, status=200)
 
 
 class PageFollowUnfollowAPIView(APIView):
@@ -394,15 +394,15 @@ class PageBlockAPIView(APIView):
 
         # Update page status
         if page.is_blocked:
-            Page.objects.filter(pk=page_id).update(is_blocked=False)
+            page.is_blocked = False
+            page.save(update_fields=["is_blocked"])
         else:
-            Page.objects.filter(pk=page_id).update(is_blocked=True)
-
-        page.refresh_from_db()
+            page.is_blocked = True
+            page.save(update_fields=["is_blocked"])
 
         logger.info(f"[PAGE] Page updated successfully, page_id={page_id}")
 
-        return Response(PageGetSerializer(page).data, status=200)
+        return Response(PageGetSerializer(page, context={"request": request}).data, status=200)
 
 
 class PostCreateAPIView(APIView):
