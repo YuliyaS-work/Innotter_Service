@@ -1,3 +1,8 @@
+"""
+This module works with AWS S3 storage to manage page images in the Innotter Service.
+
+It creates file paths, uploads images directly into the bucket, and deletes images from the bucket.
+"""
 import logging
 import time
 from typing import Any

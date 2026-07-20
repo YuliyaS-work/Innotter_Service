@@ -1,3 +1,10 @@
+"""
+Celery application configuration for the Innotter Service.
+
+This module initializes the Celery app, loads Django settings, applies
+Celery specific configuration and enables automatic discovery of task
+modules inside the `innotter` application.
+"""
 import os
 from celery import Celery
 

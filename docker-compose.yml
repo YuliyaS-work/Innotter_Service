@@ -58,7 +58,6 @@ services:
 
     celery_worker:
         build: .
-#        command: celery -A config worker -l info
         command: python -m celery -A config worker -l info
         environment:
           - DB_ENGINE=${DB_ENGINE}
