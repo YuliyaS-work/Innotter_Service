@@ -545,7 +545,6 @@ class PageImageDetailAPI(APIView):
 
         page.image_url = None
         page.save(update_fields=["image_url"])
-        page.refresh_from_db()
 
         logger.info("[PAGE] A page image was deleted")
 
@@ -626,7 +625,8 @@ class PageImageDetailAPI(APIView):
 
         page.image_url = new_image_url
         page.save(update_fields=["image_url"])
-        page.refresh_from_db()
+
+        logger.info(f"[PAGE] New image url was saved, page_id={page_id}")
 
         return Response(PageGetSerializer(page, context={"request": request}).data, status=200)
 
