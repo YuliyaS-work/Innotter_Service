@@ -48,7 +48,7 @@ class PageGetSerializer(serializers.ModelSerializer):
     tags = TagGetSerializer(many=True)
     is_followed = serializers.SerializerMethodField()
 
-    def get_is_followed(self, page):
+    def get_is_followed(self, page) -> bool:
         request = self.context.get("request")
         return Followers.objects.filter(
             page_id=page.id,
@@ -80,7 +80,7 @@ class PostGetSerializer(serializers.ModelSerializer):
     """Serializer for returning post information."""
     is_liked = serializers.SerializerMethodField()
 
-    def get_is_liked(self, post):
+    def get_is_liked(self, post) -> bool:
         request = self.context.get("request")
         return Likes.objects.filter(post_id=post.id, user_id=request.auth_user["user_id"]).exists()
 

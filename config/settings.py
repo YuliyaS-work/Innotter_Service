@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 
 from decouple import config
+from kombu import Queue, Exchange
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -210,12 +211,46 @@ AWS_REGION=config('AWS_REGION')
 BUCKET_NAME=config('BUCKET_NAME')
 
 # celery
+main_exchange = Exchange('main_exchange', type='direct')
+innotter_dlx_exchange = Exchange('innotter_dlx_exchange', type='direct')
+waiting_exchange = Exchange('waiting_exchange', type='direct')
+
 CELERY_BROKER_URL = config('CELERY_BROKER_URL')
 CELERY_BROKER_TRANSPORT_OPTIONS = json.loads(
     config("CELERY_BROKER_TRANSPORT_OPTIONS", "{}")
 )
-CELERY_RESULT_BACKEND =config('CELERY_RESULT_BACKEND')
+CELERY_RESULT_BACKEND = config('CELERY_RESULT_BACKEND')
 CELERY_ACCEPT_CONTENT = ['application/json']
+CELERY_TASK_QUEUES = (
+    Queue(
+        name= 'delete-user-data',
+        exchange=main_exchange,
+        routing_key='delete_user_data',
+        durable=True,
+        arguments={
+                'x-dead-letter-exchange': 'innotter_dlx_exchange',
+                'x-dead-letter-routing-key': 'delete_user_data_dlq'
+        }
+    ),
+    Queue(
+        name='delete-user-data-dlq',
+        exchange=innotter_dlx_exchange,
+        routing_key='delete_user_data_dlq',
+        durable=True
+    ),
+    Queue(
+        name= 'waiting-queue',
+        exchange=waiting_exchange,
+        routing_key='waiting_queue',
+        durable=True,
+    ),
+)
+CELERY_TASK_ROUTES = {
+    'innotter.tasks.delete_user_data': {'queue': 'delete-user-data'},
+}
+CELERY_TASK_DEFAULT_EXCHANGE = 'main_exchange'
+CELERY_TASK_DEFAULT_EXCHANGE_TYPE = 'direct'
+CELERY_TASK_DEFAULT_ROUTING_KEY = 'delete_user_data'
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
