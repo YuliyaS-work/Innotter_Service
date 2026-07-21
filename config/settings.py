@@ -247,6 +247,7 @@ CELERY_TASK_QUEUES = (
 )
 CELERY_TASK_ROUTES = {
     'innotter.tasks.delete_user_data': {'queue': 'delete-user-data'},
+    'innotter.tasks.unblock_page': {'queue': 'default'},
 }
 CELERY_TASK_DEFAULT_EXCHANGE = 'main_exchange'
 CELERY_TASK_DEFAULT_EXCHANGE_TYPE = 'direct'
