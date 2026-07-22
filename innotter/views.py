@@ -15,7 +15,6 @@ import logging
 from datetime import timedelta
 from typing import Any
 
-from celery.worker.control import revoke
 from django.db import models
 from django.db.models import F
 from django.utils import timezone
@@ -415,15 +414,8 @@ class PageBlockAPIView(APIView):
 
         # Update page status
         if page.is_blocked:
-
-            # Remove task if it exists
-            if page.task_id:
-                revoke(self, page.task_id, terminate=True)
-                page.task_id = None
-
             page.is_blocked = False
             page.unblock_date = None
-
             page.save(update_fields=["is_blocked", "unblock_date", "task_id"])
         else:
             page.is_blocked = True

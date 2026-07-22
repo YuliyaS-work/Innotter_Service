@@ -22,7 +22,6 @@ class Page(models.Model):
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Updated time")
     tags = models.ManyToManyField("Tag", blank=True, verbose_name="Tags")
     followers_count = models.PositiveSmallIntegerField(default=0, verbose_name="Number of followers")
-    task_id = models.CharField(max_length=255, null=True, blank=True)
 
     class Meta:
         verbose_name_plural = "Pages"
