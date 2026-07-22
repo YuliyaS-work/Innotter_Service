@@ -17,7 +17,7 @@ class Page(models.Model):
     group_id = models.PositiveSmallIntegerField(null=True, verbose_name="Group ID of a user")
     image_url = models.CharField(max_length=255, null=True, blank=True, verbose_name="Image URL")
     is_blocked = models.BooleanField(default=False, verbose_name="Page status")
-    unblock_date = models.DateTimeField(null=True, blank=True, auto_now=True, verbose_name="Unblocked time")
+    unblock_date = models.DateTimeField(null=True, blank=True, verbose_name="Unblocked time")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Created time")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="Updated time")
     tags = models.ManyToManyField("Tag", blank=True, verbose_name="Tags")
@@ -32,6 +32,7 @@ class Page(models.Model):
             models.Index(fields=["user_id"]),
             models.Index(fields=["group_id"]),
             models.Index(fields=["is_blocked"]),
+            models.Index(fields=["unblock_date"]),
         ]
 
     def __str__(self) -> str:

@@ -166,3 +166,12 @@ class PageImageUploadSerializer(serializers.Serializer):
     key = serializers.CharField()
     url = serializers.CharField()
     fields = serializers.DictField()
+
+
+class IncomingBodyMessage(serializers.Serializer):
+    """
+    Serializer of an incoming message from RabbitMQ
+    for deleting user data when a user deleted from an application.
+     """
+    user_id = serializers.CharField()
+    datetime = serializers.DateTimeField()

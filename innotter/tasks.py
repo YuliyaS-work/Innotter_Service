@@ -6,53 +6,49 @@ The `delete_user_data` task deletes all data that belongs to a user. It removes
 the user's pages and also deletes likes and followers connected to these pages.
 If a database error happens, the task will try again later using a waiting queue.
 """
-from typing import Any
+import logging
 
 from celery import shared_task
-from django.core.exceptions import ValidationError
-from pymysql import DatabaseError
+from django.db.models import F
+from django.utils import timezone
 
 from .models import Page, Likes, Followers, Post
 
-from django.db.models import F
+logger = logging.getLogger(__name__)
 
 @shared_task
-def unblock_page(page_id: int) -> None:
-    """Unblocks the page if it is currently blocked."""
-    page = Page.objects.get(pk=page_id)
+def unblock_pages() -> None:
+    """Unblocks the pages if they are currently blocked."""
+    expired_pages = Page.objects.filter(
+        is_blocked=True,
+        unblock_date__lte=timezone.now()
+    )
 
-    if page.is_blocked:
+    for page in expired_pages:
         page.is_blocked = False
-        page.save(update_fields=["is_blocked"])
+        page.unblock_date = None
+        page.save(update_fields=["is_blocked", "unblock_date"])
+        logger.info(f"Automatically unblocked page ID={page.id}")
 
 
-@shared_task(bind=True)
-def delete_user_data(self, **kwargs: dict[str, Any]) -> None:
+@shared_task
+def delete_user_data(user_id: str) -> None:
     """Deletes all data related to the user, including pages, posts, likes, and followers."""
-    user_id = kwargs.get("user_id")
-    if not user_id:
-        raise ValidationError("Invalid message, user_id is required")
 
-    try:
-        # delete pages and their associated posts, followers and likes
-        for page in Page.objects.filter(user_id=user_id).iterator():
-            page.delete()
+    # delete pages and their associated posts, followers and likes
+    for page in Page.objects.filter(user_id=user_id).iterator():
+        page.delete()
 
-        # delete like records of a user and update a number of likes for each post
-        for like in Likes.objects.filter(user_id=user_id).iterator():
-            (Post.objects.filter(pk=like.post_id, likes_count__gt=0)
-             .update(likes_count=F("likes_count") - 1))
-            like.delete()
+    # delete like records of a user and update a number of likes for each post
+    for like in Likes.objects.filter(user_id=user_id).iterator():
+        (Post.objects.filter(pk=like.post_id, likes_count__gt=0)
+         .update(likes_count=F("likes_count") - 1))
+        like.delete()
 
-        # delete follower records of a user and update a number of followers for each page
-        for follower in Followers.objects.filter(user_id=user_id).iterator():
-            (Page.objects.filter(pk=follower.page_id, followers_count__gt=0)
-             .update(followers_count=F("followers_count") - 1))
-            follower.delete()
+    # delete follower records of a user and update a number of followers for each page
+    for follower in Followers.objects.filter(user_id=user_id).iterator():
+        (Page.objects.filter(pk=follower.page_id, followers_count__gt=0)
+         .update(followers_count=F("followers_count") - 1))
+        follower.delete()
 
-    except (DatabaseError, TimeoutError) as exc:
-        raise self.retry(
-            exc=exc,
-            countdown=30,
-            queue='waiting-queue'
-        )
+    logger.info(f"User data were deleted successfully. user ID={user_id}")

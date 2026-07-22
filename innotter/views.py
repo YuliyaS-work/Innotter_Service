@@ -12,7 +12,7 @@ All endpoints rely on JWT authentication performed by the
 middleware.
 """
 import logging
-from datetime import timezone, timedelta
+from datetime import timedelta
 from typing import Any
 
 from celery.worker.control import revoke
@@ -34,7 +34,6 @@ from innotter.s3_service import delete_page_image, generate_page_image_s3_path, 
 from innotter.serializers import FeedSerializer, PageCreateUpdateSerializer, PageGetSerializer, PostGetSerializer, \
     PageWithPostsSerializer, FollowersGetSerializer, PostCreateUpdateSerializer, TagCreateSerializer, TagGetSerializer, \
     PageImageUrlSerializer, PageImageUploadSerializer
-from innotter.tasks import unblock_page
 
 logger = logging.getLogger(__name__)
 
@@ -301,6 +300,7 @@ class PageFollowUnfollowAPIView(APIView):
                 description="ID of the page to update"
             )
         ],
+        request=None,
         responses={
             200: PageGetSerializer,
             404: OpenApiResponse(description="Page was not found")
@@ -430,11 +430,7 @@ class PageBlockAPIView(APIView):
             page.unblock_date = timezone.now() + timedelta(minutes=5) # for testing
             # page.unblock_date = timezone.now() + timedelta(hours=24) for production
 
-            task = unblock_page.apply_async(args=[page.id], countdown=5*60)
-            page.task_id = task.id
-
-            page.save(update_fields=["is_blocked", "unblock_date", "task_id"])
-
+            page.save(update_fields=["is_blocked", "unblock_date"])
 
         logger.info(f"[PAGE] Page updated successfully, page_id={page_id}")
 
@@ -755,6 +751,7 @@ class PostLikeUnlikeAPIView(APIView):
                 description="ID of the post to update"
             )
         ],
+        request=None,
         responses={
             200: PostGetSerializer,
             404: OpenApiResponse(description="Post was not found")

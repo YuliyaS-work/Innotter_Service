@@ -31,7 +31,6 @@ class JwtAuthMiddleware:
     def __call__(self, request):
         token = request.COOKIES.get("access_token")
         logger.info(f"[JwtAuthMiddleware] Token received, token={token}")
-        print(token)
 
         if not token:
             logger.info("[JwtAuthMiddleware] Missing token")
