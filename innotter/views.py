@@ -416,7 +416,7 @@ class PageBlockAPIView(APIView):
         if page.is_blocked:
             page.is_blocked = False
             page.unblock_date = None
-            page.save(update_fields=["is_blocked", "unblock_date", "task_id"])
+            page.save(update_fields=["is_blocked", "unblock_date"])
         else:
             page.is_blocked = True
             page.unblock_date = timezone.now() + timedelta(minutes=5) # for testing
