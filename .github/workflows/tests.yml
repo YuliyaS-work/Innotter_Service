@@ -25,7 +25,6 @@ jobs:
       REDIS_PORT: 6379
       REDIS_PASSWORD: test
       CELERY_BROKER_URL: redis://localhost
-      CELERY_BROKER_TRANSPORT_OPTIONS: {"test":1000}
       CELERY_RESULT_BACKEND: redis://localhost
       CELERYD_POOL: test
 
