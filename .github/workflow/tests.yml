@@ -1,0 +1,50 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    env:
+      DB_ENGINE: django.db.backends.mysql
+      DB_HOST: localhost
+      DB_PORT: 3306
+      DB_NAME: test
+      DB_USER: test
+      DB_PASSWORD: test
+      SECRET_KEY: test
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: eu-central-1
+      BUCKET_NAME: test
+      RABBITMQ_URL: amqp://localhost
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: test
+      CELERY_BROKER_URL: redis://localhost
+      CELERY_BROKER_TRANSPORT_OPTIONS: {"test":1000}
+      CELERY_RESULT_BACKEND: redis://localhost
+      CELERYD_POOL: test
+
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Install dependencies with uv
+        run: uv sync --frozen
+
+      - name: Run tests
+        run: uv run coverage run -m pytest
+
+      - name: Coverage report
+        run: uv run coverage report --fail-under=80
