@@ -35,3 +35,13 @@ def post_data():
 @pytest.fixture
 def api_factory():
     return APIRequestFactory()
+
+
+@pytest.fixture
+def follower_data():
+    return {
+        "id": 1,
+        "page": 1,
+        "user_id": 123,
+        "group_id": 1
+    }
