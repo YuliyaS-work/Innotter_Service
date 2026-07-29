@@ -473,7 +473,7 @@ class PostCreateAPIView(APIView):
         return Response(PostGetSerializer(post, context={"request": request}).data, status=201)
 
 
-class PageImageDetailAPI(APIView):
+class PageImageDetailAPIView(APIView):
     """
     API endpoint for managing a page image stored in S3.
     Handle operations:
@@ -564,7 +564,7 @@ class PageImageDetailAPI(APIView):
         summary="Upload a new page image",
         description="Upload a new page image by a page owner."
     )
-    def post(self, request: Request, **kwargs: Any):
+    def post(self, request: Request, *args: Any, **kwargs: Any):
         """
         Generate a presigned POST for uploading a new page image to S3.
 
@@ -603,11 +603,11 @@ class PageImageDetailAPI(APIView):
 
     @extend_schema(
         request=PageImageUrlSerializer,
-        responses={201: PageGetSerializer},
+        responses={200: PageGetSerializer},
         summary="Confirm a new page image",
         description="Confirm a new page image by a page owner and save it into the database."
     )
-    def put(self, request: Request, **kwargs: Any):
+    def put(self, request: Request, *args: Any, **kwargs: Any):
         """
         Confirm the uploaded page image and save its S3 key into the database.
 

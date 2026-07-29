@@ -45,3 +45,9 @@ def follower_data():
         "user_id": 123,
         "group_id": 1
     }
+
+@pytest.fixture
+def image_data():
+    return {
+        "key": "image_url"
+    }
