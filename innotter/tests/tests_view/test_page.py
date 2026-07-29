@@ -348,8 +348,8 @@ class TestPageFollowUnfollowAPIView:
             page_data
     ):
         """
-        Test checks PATCH method when page is unfollowed and exists.
-        The view should return page info with increased amount of followers.
+        Test checks PATCH method when page is followed and exists.
+        The view should return page info with decreased amount of followers.
         """
         # Arrange
         request = api_factory.patch("/page/<int:page_id>/")
@@ -437,89 +437,88 @@ class TestPageFollowUnfollowAPIView:
 
         mock_get_serializer.assert_not_called()
 
+    @patch("innotter.views.PageGetSerializer")
+    @patch("innotter.views.Followers.objects.create")
+    @patch("innotter.views.Page.objects.filter")
+    @patch("innotter.views.Followers.objects.filter")
+    @patch("innotter.views.PageFollowUnfollowAPIView.check_object_permissions")
+    @patch("innotter.views.get_object")
+    @patch("innotter.views.get_object_id")
+    def test_patch_follow(
+            self,
+            mock_get_object_id,
+            mock_get_object,
+            mock_check_permissions,
+            mock_followers_filter,
+            mock_page_filter,
+            mock_follower_create,
+            mock_get_serializer,
+            api_factory,
+            auth_user,
+            page_data
+    ):
+        """
+        Test checks PATCH method when page is unfollowed and exists.
+        The view should return page info with increased amount of followers.
+        """
+        # Arrange
+        request = api_factory.patch("/page/<int:page_id>/follow")
+        request.auth_user = auth_user
 
-        @patch("innotter.views.PageGetSerializer")
-        @patch("innotter.views.Followers.objects.create")
-        @patch("innotter.views.Page.objects.filter")
-        @patch("innotter.views.Followers.objects.filter")
-        @patch("innotter.views.PageFollowUnfollowAPIView.check_object_permissions")
-        @patch("innotter.views.get_object")
-        @patch("innotter.views.get_object_id")
-        def test_patch_follow(
-                self,
-                mock_get_object_id,
-                mock_get_object,
-                mock_check_permissions,
-                mock_followers_filter,
-                mock_page_filter,
-                mock_follower_create,
-                mock_get_serializer,
-                api_factory,
-                auth_user,
-                page_data
-        ):
-            """
-            Test checks PATCH method when page is followed and exists.
-            The view should return page info with decreased amount of followers.
-            """
-            # Arrange
-            request = api_factory.patch("/page/<int:page_id>/follow")
-            request.auth_user = auth_user
+        page_id = 1
+        mock_get_object_id.return_value = page_id
+        page = MagicMock()
+        mock_get_object.return_value = page
 
-            page_id = 1
-            mock_get_object_id.return_value = page_id
-            page = MagicMock()
-            mock_get_object.return_value = page
+        permission_classes = MagicMock()
+        permission_classes.return_value = True
+        mock_check_permissions.return_value = None
 
-            permission_classes = MagicMock()
-            permission_classes.return_value = True
-            mock_check_permissions.return_value = None
+        follower = None
 
-            follower = None
+        mock_followers_filter.return_value.first.return_value = follower
 
-            mock_followers_filter.return_value.first.return_value = follower
+        new_follower = MagicMock()
+        mock_follower_create.return_value = new_follower
 
-            new_follower =  MagicMock()
-            mock_follower_create.return_value = new_follower
+        page_queryset = MagicMock()
+        mock_page_filter.return_value = page_queryset
+        page_queryset.update.return_value = page_queryset
 
-            page_queryset = MagicMock()
-            mock_page_filter.return_value = page_queryset
-            page_queryset.update.return_value = page_queryset
+        get_serializer = MagicMock()
+        get_serializer.data = page_data
+        mock_get_serializer.return_value = get_serializer
 
-            get_serializer = MagicMock()
-            get_serializer.data = page_data
-            mock_get_serializer.return_value = get_serializer
+        # Act
+        response = self.view(request)
 
-            # Act
-            response = self.view(request)
+        # Assert
+        assert response.status_code == 200
+        assert response.data == page_data
 
-            # Assert
-            assert response.status_code == 200
-            assert response.data == page_data
+        mock_followers_filter.assert_called_once_with(
+            page_id=page_id,
+            user_id=auth_user["user_id"],
+        )
 
-            mock_followers_filter.assert_called_once_with(
-                page_id=page_id,
-                user_id=auth_user["user_id"],
-            )
+        mock_follower_create.assert_called_once_with(
+            page_id=page_id,
+            user_id=auth_user["user_id"],
+            group_id=auth_user["group_id"],
+        )
 
-            mock_follower_create.assert_called_once_with(
-                page_id=page_id,
-                user_id=auth_user["user_id"],
-                group_id=auth_user["group_id"],
-            )
+        mock_page_filter.assert_called_once_with(pk=page_id)
+        page_queryset.update.assert_called_once()
 
-            mock_page_filter.assert_called_once_with(pk=page_id)
-            page_queryset.update.assert_called_once()
+        page.refresh_from_db.assert_called_once()
 
-            page.refresh_from_db.assert_called_once()
-
-            mock_get_serializer.assert_called_once()
-            args, kwargs = mock_get_serializer.call_args
-            assert args[0] is page
-            assert "context" in kwargs
-            assert "request" in kwargs["context"]
-            drf_request = kwargs["context"]["request"]
-            assert drf_request.auth_user == auth_user
+        mock_get_serializer.assert_called_once()
+        args, kwargs = mock_get_serializer.call_args
+        assert args[0] is page
+        assert "context" in kwargs
+        assert "request" in kwargs["context"]
+        drf_request = kwargs["context"]["request"]
+        assert drf_request.auth_user == auth_user
 
 
 class TestPageFollowersGetAPIView:
