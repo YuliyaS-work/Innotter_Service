@@ -17,6 +17,7 @@ class TestPostDetailAPIView:
         self.view = PostDetailAPIView.as_view()
         self.permission_classes = PostDetailPermission()
 
+
     @patch("innotter.views.PostDetailAPIView.check_object_permissions")
     @patch("innotter.views.get_object")
     @patch("innotter.views.get_object_id")
@@ -142,6 +143,7 @@ class TestPostLikeUnlikeAPIView:
     def setup_method(self):
         self.view = PostLikeUnlikeAPIView.as_view()
         self.permission_classes = AllowAllAuthenticatedUser()
+
 
     @patch("innotter.views.PostGetSerializer")
     @patch("innotter.views.Post.objects.filter")

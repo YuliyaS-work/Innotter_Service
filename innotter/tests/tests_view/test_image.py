@@ -1,7 +1,5 @@
 from unittest.mock import patch, MagicMock
 
-from rest_framework.request import Request
-
 from config import settings
 from innotter.permissions import PageImageDetailPermission
 from innotter.views import PageImageDetailAPIView

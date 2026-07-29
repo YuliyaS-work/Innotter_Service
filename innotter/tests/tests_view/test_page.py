@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 from rest_framework.request import Request
 
-from innotter.exceptions.api_exceptions import ResourceException, LogicException
+from innotter.exceptions.api_exceptions import ResourceException
 from innotter.models import Page
 from innotter.permissions import PageDetailPermission, AllowAllAuthenticatedUser, IsUserOwner, IsAdminModerator
 from innotter.views import PageCreateAPIView, PageDetailAPIView, PageFollowUnfollowAPIView, PageFollowersGetAPIView, \
@@ -643,6 +643,7 @@ class TestPageBlockAPIView:
         assert "request" in kwargs["context"]
         drf_request = kwargs["context"]["request"]
         assert drf_request.auth_user == auth_user
+
 
     @patch("innotter.views.PageBlockAPIView.check_object_permissions")
     @patch("innotter.views.PageGetSerializer")
