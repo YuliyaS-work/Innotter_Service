@@ -25,14 +25,18 @@ def unblock_pages() -> None:
     )
 
     for page in expired_pages:
-        page.is_blocked = False
-        page.unblock_date = None
-        page.save(update_fields=["is_blocked", "unblock_date"])
-        logger.info(f"Automatically unblocked page ID={page.id}")
+        try:
+            page.is_blocked = False
+            page.unblock_date = None
+            page.save(update_fields=["is_blocked", "unblock_date"])
+            logger.info(f"Automatically unblocked page ID={page.id}")
+
+        except Exception as e:
+            logger.error(f"[TASK] Failed to unblock page ID={page.id}: {e}")
 
 
-@shared_task
-def delete_user_data(user_id: str) -> None:
+@shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True)
+def delete_user_data(self, user_id: str) -> None:
     """Deletes all data related to the user, including pages, posts, likes, and followers."""
 
     # delete pages and their associated posts, followers and likes

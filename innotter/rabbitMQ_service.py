@@ -61,6 +61,8 @@ async def setup_rabbitmq() -> None:
             durable=True
         )
 
+        logger.info("Queues was created.")
+
     except Exception:
         logger.exception("Failed to initialized RabbitMq")
         raise

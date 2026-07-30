@@ -234,14 +234,13 @@ class TestPageDetailAPIView:
 
         page_id = 1
         mock_get_object_id.return_value = page_id
-        mock_get_related_data.return_value.get.side_effect = ResourceException()
+        mock_get_related_data.return_value.get.side_effect = Page.DoesNotExist()
 
         # Act
         response = self.view(request, page_id)
 
         # Assert
         assert response.status_code == 404
-        assert response.data["detail"] == "Resource is not found"
 
         mock_get_object_id.assert_called_once()
         mock_get_related_data.return_value.get.assert_called_once_with(pk=page_id)

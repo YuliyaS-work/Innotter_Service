@@ -1,3 +1,5 @@
+from unittest.mock import AsyncMock
+
 import pytest
 
 from rest_framework.test import APIRequestFactory
@@ -46,8 +48,22 @@ def follower_data():
         "group_id": 1
     }
 
+
 @pytest.fixture
 def image_data():
     return {
         "key": "image_url"
     }
+
+
+@pytest.fixture
+def tag_data():
+    return {
+        "id": 1,
+        "name": "tag1"
+    }
+
+@pytest.fixture
+def mock_conn():
+    connection = AsyncMock()
+    return connection

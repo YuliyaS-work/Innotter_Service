@@ -19,5 +19,5 @@ urlpatterns = [
     path("api/page/<int:page_id>/image/", PageImageDetailAPIView.as_view(), name="page_image"),
     path("api/post/<int:post_id>/", PostDetailAPIView.as_view(), name="detail_post"),
     path("api/post/<int:post_id>/like", PostLikeUnlikeAPIView.as_view(), name="like_unlike_post"),
-    path("api/tag", TagDetailAPIView.as_view(), name="detail_tag"),
+    path("api/tag/", TagDetailAPIView.as_view(), name="detail_tag"),
 ]
