@@ -91,6 +91,7 @@ class PostGetSerializer(serializers.ModelSerializer):
             "page",
             "content",
             "reply_to",
+            "image_url",
             "created_at",
             "updated_at",
             "likes_count",
@@ -156,12 +157,12 @@ class FollowersGetSerializer(serializers.ModelSerializer):
         fields = ["id", "page", "user_id", "group_id"]
 
 
-class PageImageUrlSerializer(serializers.Serializer):
-    """Serializer for getting  and saving a page image path into the database."""
+class ImageUrlSerializer(serializers.Serializer):
+    """Serializer for getting  and saving a image path into the database."""
     key = serializers.CharField()
 
 
-class PageImageUploadSerializer(serializers.Serializer):
+class ImageUploadSerializer(serializers.Serializer):
     """Serializer for the presigned POST response used to upload a page image to S3."""
     key = serializers.CharField()
     url = serializers.CharField()

@@ -112,7 +112,7 @@ class TestPageDetailAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         page = MagicMock()
         mock_get_object.return_value = page
 
@@ -163,7 +163,7 @@ class TestPageDetailAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         related_data = MagicMock()
         mock_get_related_data.return_value.get.return_value = related_data
 
@@ -233,7 +233,7 @@ class TestPageDetailAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         mock_get_related_data.return_value.get.side_effect = Page.DoesNotExist()
 
         # Act
@@ -280,7 +280,7 @@ class TestPageDetailAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         page = MagicMock()
         mock_get_object.return_value = page
 
@@ -355,7 +355,7 @@ class TestPageFollowUnfollowAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         page = MagicMock()
         mock_get_object.return_value = page
 
@@ -422,7 +422,7 @@ class TestPageFollowUnfollowAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         page = MagicMock()
         mock_get_object.return_value = page
         page.user_id = auth_user["user_id"]
@@ -465,7 +465,7 @@ class TestPageFollowUnfollowAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         page = MagicMock()
         mock_get_object.return_value = page
 
@@ -557,7 +557,7 @@ class TestPageFollowersGetAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         page = MagicMock()
         mock_get_object.return_value = page
         follower_queryset = MagicMock()
@@ -615,7 +615,7 @@ class TestPageBlockAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         page = MagicMock()
         mock_get_object.return_value = page
 
@@ -667,7 +667,7 @@ class TestPageBlockAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         page = MagicMock()
         mock_get_object.return_value = page
 
@@ -740,7 +740,7 @@ class TestPostCreateAPIView:
         request.auth_user = auth_user
 
         page_id = 1
-        mock_get_object_id.return_value = page_id
+        mock_get_object_id.return_value = (page_id, "Page")
         page = MagicMock()
         mock_get_object.return_value = page
 

@@ -1,5 +1,5 @@
 """
-This module works with AWS S3 storage to manage page images in the Innotter Service.
+This module works with AWS S3 storage to manage images in the Innotter Service.
 
 It creates file paths, uploads images directly into the bucket, and deletes images from the bucket.
 """
@@ -26,36 +26,36 @@ def get_s3():
     return s3_session.client("s3")
 
 
-def generate_page_image_s3_path(page_id: int) -> str:
+def generate_image_s3_path(instance_id: int, entity: str) -> str:
     """
-    Create image_s3_path for a page image.
+    Create image_s3_path for an image.
     """
     file_name = time.time_ns()
-    image_s3_path = f"innotter/page_image/{page_id}_{file_name}.webp"
+    image_s3_path = f"innotter/{entity}_image/{instance_id}_{file_name}.webp"
     return image_s3_path
 
 
-def delete_page_image(bucket: str, image_s3_path: str) -> None:
+def delete_image(bucket: str, image_s3_path: str) -> None:
     """
-    Delete a page image from an S3 bucket.
+    Delete an image from an S3 bucket.
     """
-    logger.info(f"Start: deleting page image from s3, bucket={bucket}, key={image_s3_path}")
+    logger.info(f"Start: deleting  image from s3, bucket={bucket}, key={image_s3_path}")
 
     try:
         s3 = get_s3()
         s3.delete_object(Bucket=bucket, Key=image_s3_path)
 
-        logger.info(f"Success: page image from s3 was deleted, bucket={bucket}, key={image_s3_path}")
+        logger.info(f"Success: image from s3 was deleted, bucket={bucket}, key={image_s3_path}")
 
     except ClientError:
         logger.exception(
             "S3 rejected the request",
             extra={"bucket": bucket, "key": image_s3_path}
         )
-        raise S3StorageError("The page image is not deleted")
+        raise S3StorageError("The image is not deleted")
 
 
-def create_presigned_post_for_page_image(
+def create_presigned_post(
         bucket: str,
         image_s3_path: str,
         expiration: int =3600
@@ -63,10 +63,10 @@ def create_presigned_post_for_page_image(
     """
     Generate a presigned URL to share an S3 object.
     """
-    logger.info(f"Start: generating presigned post to the page image upload, bucket={bucket}, key={image_s3_path}")
+    logger.info(f"Start: generating presigned post to the image upload, bucket={bucket}, key={image_s3_path}")
 
     if not image_s3_path:
-        raise S3StorageError("A path to the page image in the database is not exist.")
+        raise S3StorageError("A path to the image in the database is not exist.")
     try:
         s3 = get_s3()
         post: dict[str, Any] = s3.generate_presigned_post(
@@ -80,7 +80,7 @@ def create_presigned_post_for_page_image(
             ExpiresIn=expiration
         )
 
-        logger.info(f"Success: presigned post to the page image upload was generated, "
+        logger.info(f"Success: presigned post to the image upload was generated, "
                     f"bucket={bucket}, key={image_s3_path}")
 
         return post

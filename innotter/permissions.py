@@ -38,8 +38,12 @@ def check_access(
         return group_id == getattr(obj, "group_id", None)
 
     if "USER" in roles and allow_user:
-        return user_id == getattr(obj, "user_id", None)
+        owner_id = getattr(obj, "user_id", None)
 
+        if owner_id is None:
+            if hasattr(obj, "page"):
+                owner_id = getattr(obj.page, "user_id", None)
+        return user_id == owner_id
     return False
 
 
@@ -100,8 +104,8 @@ class PostDetailPermission(ComplexApiPermission):
     }
 
 
-class PageImageDetailPermission(ComplexApiPermission):
-    """Combined permission class for PageImageDetailApiView endpoint"""
+class ImageDetailPermission(ComplexApiPermission):
+    """Combined permission class for ImageDetailApiView endpoint"""
     method_permission: dict[str, type[BasePermission]] = {
         "GET": AllowAllAuthenticatedUser,
         "DELETE": IsUserOwner,

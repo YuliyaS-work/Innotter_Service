@@ -1,125 +1,154 @@
 from unittest.mock import patch, MagicMock
 
+import pytest
+
 from config import settings
-from innotter.permissions import PageImageDetailPermission
-from innotter.views import PageImageDetailAPIView
+from innotter.models import Page, Post
+from innotter.permissions import ImageDetailPermission
+from innotter.serializers import PostGetSerializer, PageGetSerializer
+from innotter.views import ImageDetailAPIView, SERIALIZER_MAP
 
 
-class TestPageImageDetailAPIView:
+class TestImageDetailAPIView:
     """
-    Tests for PageImageDetailAPIView.
+    Tests for ImageDetailAPIView.
     These tests check DELETE, GET, PUT and POST methods behavior.
     They verify permissions, object loading, and responses.
     """
 
     def setup_method(self):
-        self.view = PageImageDetailAPIView.as_view()
-        self.permission_classes = PageImageDetailPermission()
+        self.view = ImageDetailAPIView.as_view()
+        self.permission_classes = ImageDetailPermission()
 
-    @patch("innotter.views.delete_page_image")
-    @patch("innotter.views.PageGetSerializer")
-    @patch("innotter.views.PageImageDetailAPIView.check_object_permissions")
+
+    @pytest.mark.parametrize("entity,model,serializer", [
+        ("Page", Page, PageGetSerializer),
+        ("Post", Post, PostGetSerializer),
+    ])
+    @patch("innotter.views.delete_image")
+    @patch("innotter.views.ImageDetailAPIView.check_object_permissions")
     @patch("innotter.views.get_object")
     @patch("innotter.views.get_object_id")
+    @patch.dict("innotter.views.SERIALIZER_MAP",{},clear=True)
     def test_delete_success(
             self,
             mock_get_object_id,
             mock_get_object,
             mock_check_permissions,
-            mock_page_serializer,
-            mock_delete_page_image,
+            mock_delete_image,
+            entity,
+            model,
+            serializer,
             auth_user,
-            api_factory,
-            page_data
+            api_factory
     ):
         """
         Test checks DELETE method when image exists.
         The view should delete the image and return status 200.
         """
         # Arrange
-        request = api_factory.delete("/page/<int:page_id>/image")
+        instance_id = 1
+
+        serializer_instance = MagicMock()
+        serializer_instance.data = {"id": instance_id, "image_url": None}
+
+        SERIALIZER_MAP[entity] = lambda obj, context: serializer_instance
+
+        request = api_factory.delete("/{entity.lower()}/{instance_id}/image")
         request.auth_user = auth_user
 
-        page_id = 1
-        mock_get_object_id.return_value = page_id
-        page = MagicMock()
-        page.image_url = "image_url"
-        mock_get_object.return_value = page
+        mock_get_object_id.return_value = (instance_id, entity)
+
+        instance = MagicMock(spec=model)
+        instance.id = instance_id
+        instance.image_url = "image_url.webp"
+        mock_get_object.return_value = instance
 
         permission_classes = MagicMock()
         permission_classes.return_value = True
         mock_check_permissions.return_value = None
 
-        mock_page_serializer.return_value.data = page_data
         # Act
-        response = self.view(request, page_id)
+        response = self.view(request, instance_id)
 
         # Assert
         assert response.status_code == 200
 
+        assert instance.image_url is None
+        instance.save.assert_called_once_with(update_fields=["image_url"])
+        assert response.data == serializer_instance.data
+
         mock_get_object_id.assert_called_once()
-        mock_get_object.assert_called_once()
-
+        mock_get_object.assert_called_once_with(model, instance_id)
         mock_check_permissions.assert_called_once()
-        mock_delete_page_image.assert_called_once_with(settings.BUCKET_NAME, "image_url")
-
-        mock_page_serializer.assert_called_once()
-        args, kwargs = mock_page_serializer.call_args
-        assert args[0] is page
-        assert "context" in kwargs
-        assert "request" in kwargs["context"]
-        drf_request = kwargs["context"]["request"]
-        assert drf_request.auth_user == auth_user
+        mock_delete_image.assert_called_once_with(settings.BUCKET_NAME, "image_url.webp")
 
 
-    @patch("innotter.views.delete_page_image")
-    @patch("innotter.views.PageGetSerializer")
-    @patch("innotter.views.PageImageDetailAPIView.check_object_permissions")
+
+    @pytest.mark.parametrize("entity,model,serializer", [
+        ("Page", Page, PageGetSerializer),
+        ("Post", Post, PostGetSerializer),
+    ])
+    @patch("innotter.views.delete_image")
+    @patch("innotter.views.ImageDetailAPIView.check_object_permissions")
     @patch("innotter.views.get_object")
     @patch("innotter.views.get_object_id")
+    @patch.dict("innotter.views.SERIALIZER_MAP",{},clear=True)
     def test_delete_not_url(
             self,
             mock_get_object_id,
             mock_get_object,
             mock_check_permissions,
-            mock_page_serializer,
-            mock_delete_page_image,
+            mock_delete_image,
+            entity,
+            model,
+            serializer,
             auth_user,
-            api_factory,
-            page_data
+            api_factory
     ):
         """
         Test checks DELETE method when image url doesn't exist.
         The view should raise ResourceException.
         """
         # Arrange
-        request = api_factory.delete("/page/<int:page_id>/image")
+        instance_id = 1
+
+        serializer_instance = MagicMock()
+        serializer_instance.data = {"id": instance_id, "image_url": None}
+
+        SERIALIZER_MAP[entity] = lambda obj, context: serializer_instance
+
+        request = api_factory.delete("/{entity.lower()}/{instance_id}/image")
         request.auth_user = auth_user
 
-        page_id = 1
-        mock_get_object_id.return_value = page_id
-        page = MagicMock()
-        page.image_url = None
-        mock_get_object.return_value = page
+        mock_get_object_id.return_value = (instance_id, entity)
+
+        instance = MagicMock(spec=model)
+        instance.id = instance_id
+        instance.image_url = None
+        mock_get_object.return_value = instance
 
         permission_classes = MagicMock()
         permission_classes.return_value = True
         mock_check_permissions.return_value = None
 
-        mock_page_serializer.return_value.data = page_data
         # Act
-        response = self.view(request, page_id)
+        response = self.view(request, instance_id)
 
         # Assert
         assert response.status_code == 404
-        assert response.data["detail"] == "A path to the page image in the database is not exist."
+        assert response.data["detail"] == "A path to the instance image in the database is not exist."
 
         mock_get_object_id.assert_called_once()
         mock_get_object.assert_called_once()
-        mock_delete_page_image.assert_not_called()
+        mock_delete_image.assert_not_called()
 
 
-    @patch("innotter.views.PageImageUrlSerializer")
+    @pytest.mark.parametrize("entity,model", [
+        ("Page", Page),
+        ("Post", Post),
+    ])
+    @patch("innotter.views.ImageUrlSerializer")
     @patch("innotter.views.get_object")
     @patch("innotter.views.get_object_id")
     def test_get_success(
@@ -129,26 +158,31 @@ class TestPageImageDetailAPIView:
             mock_image_serializer,
             auth_user,
             image_data,
-            api_factory
+            api_factory,
+            entity,
+            model,
     ):
         """
-        Test checks GET method when page image url exists.
+        Test checks GET method when image url exists.
         The view should return url info.
         """
        # Arrange
-        request = api_factory.get("/page/<int:page_id>/image")
+        instance_id = 1
+
+        request = api_factory.get("/{entity.lower()}/{instance_id}/image")
         request.auth_user = auth_user
 
-        page_id = 1
-        mock_get_object_id.return_value = page_id
-        page = MagicMock()
-        mock_get_object.return_value = page
-        page.image_url = "image_url"
+        mock_get_object_id.return_value = (instance_id, entity)
+
+        instance = MagicMock(spec=model)
+        instance.id = instance_id
+        instance.image_url = "image_url"
+        mock_get_object.return_value = instance
 
         mock_image_serializer.return_value.data = image_data
 
         # Act
-        response = self.view(request, page_id)
+        response = self.view(request, instance_id)
 
         # Assert
         assert response.status_code == 200
@@ -158,7 +192,12 @@ class TestPageImageDetailAPIView:
         mock_image_serializer.assert_called_once()
 
 
-    @patch("innotter.views.PageImageUrlSerializer")
+
+    @pytest.mark.parametrize("entity,model", [
+        ("Page", Page),
+        ("Post", Post),
+    ])
+    @patch("innotter.views.ImageUrlSerializer")
     @patch("innotter.views.get_object")
     @patch("innotter.views.get_object_id")
     def test_get_not_image(
@@ -168,36 +207,44 @@ class TestPageImageDetailAPIView:
             mock_image_serializer,
             auth_user,
             image_data,
-            api_factory
+            api_factory,
+            entity,
+            model,
     ):
         """
-        Test checks GET method when page image url doesn't exist.
+        Test checks GET method when image url doesn't exist.
         The view should raise ResourceException.
         """
        # Arrange
-        request = api_factory.get("/page/<int:page_id>/image")
+        instance_id = 1
+
+        request = api_factory.get("/{entity.lower()}/{instance_id}/image")
         request.auth_user = auth_user
 
-        page_id = 1
-        mock_get_object_id.return_value = page_id
-        page = MagicMock()
-        mock_get_object.return_value = page
-        page.image_url = None
+        mock_get_object_id.return_value = (instance_id, entity)
 
+        instance = MagicMock(spec=model)
+        instance.id = instance_id
+        instance.image_url = None
+        mock_get_object.return_value = instance
         # Act
-        response = self.view(request, page_id)
+        response = self.view(request, instance_id)
 
         # Assert
         assert response.status_code == 404
-        assert response.data["detail"] == "A path to the page image in the database is not exist."
+        assert response.data["detail"] == "A path to the instance image in the database is not exist."
         mock_get_object_id.assert_called_once()
         mock_get_object.assert_called_once()
         mock_image_serializer.assert_not_called()
 
 
-    @patch("innotter.views.create_presigned_post_for_page_image")
-    @patch("innotter.views.generate_page_image_s3_path")
-    @patch("innotter.views.PageImageDetailAPIView.check_object_permissions")
+    @pytest.mark.parametrize("entity,model", [
+        ("Page", Page),
+        ("Post", Post),
+    ])
+    @patch("innotter.views.create_presigned_post")
+    @patch("innotter.views.generate_image_s3_path")
+    @patch("innotter.views.ImageDetailAPIView.check_object_permissions")
     @patch("innotter.views.get_object")
     @patch("innotter.views.get_object_id")
     def test_post_success(
@@ -205,30 +252,34 @@ class TestPageImageDetailAPIView:
             mock_get_object_id,
             mock_get_object,
             mock_check_permissions,
-            mock_generate_page_image_s3_path,
+            mock_generate_image_s3_path,
             mock_create_presigned_post,
             auth_user,
             image_data,
-            api_factory
+            api_factory,
+            entity,
+            model,
     ):
         """
         Test checks POST method when presigned_post is formed.
         The view should return post data.
         """
         # Arrange
-        request = api_factory.post("/page/<int:page_id>/image")
+        instance_id = 1
+
+        request = api_factory.post("/{entity.lower()}/{instance_id}/image")
         request.auth_user = auth_user
 
-        page_id = 1
-        mock_get_object_id.return_value = page_id
-        page = MagicMock()
-        mock_get_object.return_value = page
+        mock_get_object_id.return_value = (instance_id, entity)
+
+        instance = MagicMock(spec=model)
+        mock_get_object.return_value = instance
 
         permission_classes = MagicMock()
         permission_classes.return_value = True
         mock_check_permissions.return_value = None
 
-        mock_generate_page_image_s3_path.return_value = "image_path"
+        mock_generate_image_s3_path.return_value = "image_path"
         mock_create_presigned_post.return_value = {
             "key": "image_path",
             "url": "image_url",
@@ -236,13 +287,13 @@ class TestPageImageDetailAPIView:
         }
 
         # Act
-        response = self.view(request, page_id)
+        response = self.view(request, instance_id)
 
         # Assert
         assert response.status_code == 201
         mock_get_object_id.assert_called_once()
         mock_get_object.assert_called_once()
-        mock_generate_page_image_s3_path.assert_called_with(page_id)
+        mock_generate_image_s3_path.assert_called_with(instance_id, entity)
         mock_create_presigned_post.assert_called_once_with(
             settings.BUCKET_NAME,
             "image_path",
@@ -253,23 +304,28 @@ class TestPageImageDetailAPIView:
         assert response.data["fields"] == ["fields1", "fields2"]
 
 
-    @patch("innotter.views.delete_page_image")
-    @patch("innotter.views.PageGetSerializer")
-    @patch("innotter.views.PageImageUrlSerializer")
-    @patch("innotter.views.PageImageDetailAPIView.check_object_permissions")
+    @pytest.mark.parametrize("entity,model,serializer", [
+        ("Page", Page, PageGetSerializer),
+        ("Post", Post, PostGetSerializer),
+    ])
+    @patch("innotter.views.delete_image")
+    @patch("innotter.views.ImageUrlSerializer")
+    @patch("innotter.views.ImageDetailAPIView.check_object_permissions")
     @patch("innotter.views.get_object")
     @patch("innotter.views.get_object_id")
+    @patch.dict("innotter.views.SERIALIZER_MAP",{},clear=True)
     def test_put_image_exists(
             self,
             mock_get_object_id,
             mock_get_object,
             mock_check_permissions,
             mock_image_serializer,
-            mock_page_serializer,
-            mock_delete_page_image,
+            mock_delete_image,
             auth_user,
-            page_data,
-            api_factory
+            api_factory,
+            entity,
+            model,
+            serializer,
     ):
         """
         Test checks PUT method.
@@ -277,13 +333,23 @@ class TestPageImageDetailAPIView:
         return updated page data.
         """
        # Arrange
-        request = api_factory.put("/page/<int:page_id>/image")
+        instance_id = 1
+
+        serializer_instance = MagicMock()
+        serializer_instance.data = {"id": instance_id, "image_url": None}
+
+        SERIALIZER_MAP[entity] = lambda obj, context: serializer_instance
+
+        request = api_factory.put("/{entity.lower()}/{instance_id}/image")
         request.auth_user = auth_user
 
-        page_id = 1
-        mock_get_object_id.return_value = page_id
-        page = MagicMock()
-        mock_get_object.return_value = page
+        mock_get_object_id.return_value = (instance_id, entity)
+
+        instance = MagicMock(spec=model)
+        instance.id = instance_id
+        instance.image_url = "image_url.webp"
+        mock_get_object.return_value = instance
+
 
         permission_classes = MagicMock()
         permission_classes.return_value = True
@@ -296,27 +362,18 @@ class TestPageImageDetailAPIView:
         image_serializer.validated_data.return_value = new_image_url
         mock_image_serializer.return_value = image_serializer
 
-        page.image_url  = "old_image_url"
+        instance.image_url  = "old_image_url"
 
-        mock_page_serializer.return_value.data = page_data
 
         # Act
-        response = self.view(request, page_id)
+        response = self.view(request, instance_id)
 
         # Assert
         assert response.status_code == 200
-        assert response.data == page_data
 
         mock_get_object_id.assert_called_once()
         mock_get_object.assert_called_once()
         mock_image_serializer.assert_called_once()
-        mock_delete_page_image.assert_called_once_with(settings.BUCKET_NAME, "old_image_url")
-        page.save.assert_called_once()
-
-        mock_page_serializer.assert_called_once()
-        args, kwargs = mock_page_serializer.call_args
-        assert args[0] is page
-        assert "context" in kwargs
-        assert "request" in kwargs["context"]
-        drf_request = kwargs["context"]["request"]
-        assert drf_request.auth_user == auth_user
+        mock_delete_image.assert_called_once_with(settings.BUCKET_NAME, "old_image_url")
+        instance.save.assert_called_once_with(update_fields=["image_url"])
+        assert response.data == serializer_instance.data

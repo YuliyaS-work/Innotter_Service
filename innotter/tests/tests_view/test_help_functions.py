@@ -15,7 +15,8 @@ def test_get_object_id_success():
     result = get_object_id(**parameter)
 
     # Assert
-    assert result == "item_value"
+    assert result[0] == "item_value"
+    assert result[1] == "Item"
 
 
 def test_get_object_id_fail_key():

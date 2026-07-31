@@ -1,5 +1,6 @@
 from unittest.mock import patch, MagicMock
 
+from config import settings
 from innotter.tasks import unblock_pages, delete_user_data
 
 
@@ -61,6 +62,7 @@ def test_ublock_pages_fail(
     assert "Failed to unblock page" in caplog.text
 
 
+@patch("innotter.tasks.delete_image")
 @patch("innotter.tasks.Post.objects.filter")
 @patch("innotter.tasks.Followers.objects.filter")
 @patch("innotter.tasks.Likes.objects.filter")
@@ -69,7 +71,8 @@ def test_delete_user_data_success(
         mock_page_filter,
         mock_likes_filter,
         mock_followers_filter,
-        mock_post_likes_filter,
+        mock_post_filter,
+        mock_delete_image,
         caplog
 ):
     """
@@ -77,8 +80,6 @@ def test_delete_user_data_success(
     """
     # Arrange
     user_id = "123"
-    page = MagicMock()
-    mock_page_filter.return_value.iterator.return_value = [page]
 
     like = MagicMock()
     like.post_id = 1
@@ -88,8 +89,17 @@ def test_delete_user_data_success(
     follower.page_id = 1
     mock_followers_filter.return_value.iterator.return_value = [follower]
 
-    mock_post_likes_filter.return_value.update.return_value = None
+    mock_post_filter.return_value.update.return_value = None
     mock_page_filter.return_value.update.return_value = None
+
+    mock_post_filter.return_value.exclude.return_value.values_list.return_value = [
+        "post_image_url_1",
+        "post_image_url_2",
+    ]
+
+    page = MagicMock()
+    page.image_url = "page_image_url"
+    mock_page_filter.return_value.iterator.return_value = [page]
 
     caplog.set_level("INFO")
 
@@ -98,6 +108,10 @@ def test_delete_user_data_success(
 
     # Assert
     assert "User data were deleted successfully" in caplog.text
-    page.delete.assert_called_once()
+
     like.delete.assert_called_once()
     follower.delete.assert_called_once()
+    mock_delete_image.assert_any_call(settings.BUCKET_NAME, "post_image_url_1")
+    mock_delete_image.assert_any_call(settings.BUCKET_NAME, "post_image_url_2")
+    mock_delete_image.assert_any_call(settings.BUCKET_NAME, "page_image_url")
+    page.delete.assert_called_once()

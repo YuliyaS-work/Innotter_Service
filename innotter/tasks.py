@@ -9,10 +9,13 @@ If a database error happens, the task will try again later using a waiting queue
 import logging
 
 from celery import shared_task
+from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
+from config import settings
 from .models import Page, Likes, Followers, Post
+from .s3_service import delete_image
 
 logger = logging.getLogger(__name__)
 
@@ -38,11 +41,6 @@ def unblock_pages() -> None:
 @shared_task(bind=True, autoretry_for=(Exception,), retry_backoff=True)
 def delete_user_data(self, user_id: str) -> None:
     """Deletes all data related to the user, including pages, posts, likes, and followers."""
-
-    # delete pages and their associated posts, followers and likes
-    for page in Page.objects.filter(user_id=user_id).iterator():
-        page.delete()
-
     # delete like records of a user and update a number of likes for each post
     for like in Likes.objects.filter(user_id=user_id).iterator():
         (Post.objects.filter(pk=like.post_id, likes_count__gt=0)
@@ -54,5 +52,19 @@ def delete_user_data(self, user_id: str) -> None:
         (Page.objects.filter(pk=follower.page_id, followers_count__gt=0)
          .update(followers_count=F("followers_count") - 1))
         follower.delete()
+
+    # delete post images witch belongs to a user
+    post_images = (Post.objects.filter(page__user_id=user_id).
+                    exclude(image_url__isnull=True).
+                   values_list("image_url", flat=True))
+
+    for image in post_images:
+        delete_image(settings.BUCKET_NAME, image)
+
+    # delete pages and their associated posts, followers and likes
+    for page in Page.objects.filter(user_id=user_id).iterator():
+        if page.image_url:
+            delete_image(settings.BUCKET_NAME, page.image_url)
+        page.delete()
 
     logger.info(f"User data were deleted successfully. user ID={user_id}")

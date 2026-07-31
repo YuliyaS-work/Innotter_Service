@@ -38,7 +38,7 @@ class TestPostDetailAPIView:
         request.auth_user = auth_user
 
         post_id = 1
-        mock_get_object_id.return_value = post_id
+        mock_get_object_id.return_value = (post_id, "Post")
         post = MagicMock()
         mock_get_object.return_value = post
 
@@ -96,7 +96,7 @@ class TestPostDetailAPIView:
         request.auth_user = auth_user
 
         post_id = 1
-        mock_get_object_id.return_value = post_id
+        mock_get_object_id.return_value = (post_id, "Post")
         post = MagicMock()
         mock_get_object.return_value = post
 
@@ -172,7 +172,7 @@ class TestPostLikeUnlikeAPIView:
         request.auth_user = auth_user
 
         post_id = 1
-        mock_get_object_id.return_value = post_id
+        mock_get_object_id.return_value = (post_id, "Post")
         post = MagicMock()
         mock_get_object.return_value = post
 
@@ -245,7 +245,7 @@ class TestPostLikeUnlikeAPIView:
         request.auth_user = auth_user
 
         post_id = 1
-        mock_get_object_id.return_value = post_id
+        mock_get_object_id.return_value = (post_id, "Post")
         post = MagicMock()
         mock_get_object.return_value = post
 
