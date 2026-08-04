@@ -9,7 +9,6 @@ If a database error happens, the task will try again later using a waiting queue
 import logging
 
 from celery import shared_task
-from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 

@@ -31,7 +31,7 @@ def test_generate_image_s3_path():
 
     # Act
     path = generate_image_s3_path(page_id, "Page")
-    assert path.startswith(f"innotter/Page_image/1_")
+    assert path.startswith("innotter/Page_image/1_")
     assert path.endswith(".webp")
 
 

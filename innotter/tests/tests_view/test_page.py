@@ -2,7 +2,6 @@ from unittest.mock import MagicMock, patch
 
 from rest_framework.request import Request
 
-from innotter.exceptions.api_exceptions import ResourceException
 from innotter.models import Page
 from innotter.permissions import PageDetailPermission, AllowAllAuthenticatedUser, IsUserOwner, IsAdminModerator
 from innotter.views import PageCreateAPIView, PageDetailAPIView, PageFollowUnfollowAPIView, PageFollowersGetAPIView, \
