@@ -65,12 +65,12 @@ spec:
                         'REDIS_PASSWORD=test',
                         'AWS_ACCESS_KEY_ID=test',
                         'AWS_SECRET_ACCESS_KEY=test',
-                        'AWS_REGION=us-east-1',
+                        'AWS_REGION=eu-central-1',
                         'BUCKET_NAME=test',
                         'RABBITMQ_URL=amqp://guest:guest@localhost/'
-                        'CELERY_BROKER_URL: redis://localhost',
-                        'CELERY_RESULT_BACKEND: redis://localhost',
-                        'CELERYD_POOL: test'
+                        'CELERY_BROKER_URL=redis://localhost',
+                        'CELERY_RESULT_BACKEND=redis://localhost',
+                        'CELERYD_POOL=test'
                     ]) {
                         sh '''
                             uv run coverage run -m pytest
