@@ -112,6 +112,9 @@ spec:
 
                             kubectl apply -f k8s/shared/rabbitmq.yaml --validate=false
                             kubectl rollout status deployment rabbitmq -n app --timeout=90s
+                            kubectl apply -f k8s/shared/redis.yaml --validate=false
+                            kubectl rollout status deployment redis -n app --timeout=90s
+
                             kubectl apply -f k8s/innotter/ --validate=false
 
                             kubectl rollout restart deployment innotter -n app
