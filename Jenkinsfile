@@ -67,7 +67,7 @@ spec:
                         'AWS_SECRET_ACCESS_KEY=test',
                         'AWS_REGION=eu-central-1',
                         'BUCKET_NAME=test',
-                        'RABBITMQ_URL=amqp://guest:guest@localhost/'
+                        'RABBITMQ_URL=amqp://guest:guest@localhost/',
                         'CELERY_BROKER_URL=redis://localhost',
                         'CELERY_RESULT_BACKEND=redis://localhost',
                         'CELERYD_POOL=test'
