@@ -54,11 +54,11 @@ spec:
 
                     withEnv([
                         'DB_ENGINE=django.db.backends.mysql',
-                        'MYSQL_HOST=localhost',
-                        'MYSQL_PORT=3306',
-                        'MYSQL_DATABASE=test',
-                        'MYSQL_USER=test',
-                        'MYSQL_PASSWORD=test',
+                        'DB_HOST=localhost',
+                        'DB_PORT=3306',
+                        'DB_NAME=test',
+                        'DB_USER=test',
+                        'DB_PASSWORD=test',
                         'SECRET_KEY=secret_key',
                         'REDIS_HOST=localhost',
                         'REDIS_PORT=6379',
