@@ -41,8 +41,12 @@ class JwtAuthMiddleware:
 
         try:
             with httpx.Client(timeout=5) as client:
+                # response_auth = client.get(
+                #     "http://ums_app:8000/auth/validate-token",
+                #     headers={"Authorization": f"Bearer {token}"}
+                # )
                 response_auth = client.get(
-                    "http://ums_app:8000/auth/validate-token",
+                    "http://app.local/ums/auth/validate-token",
                     headers={"Authorization": f"Bearer {token}"}
                 )
 
