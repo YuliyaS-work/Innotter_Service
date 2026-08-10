@@ -46,7 +46,7 @@ class JwtAuthMiddleware:
                 #     headers={"Authorization": f"Bearer {token}"}
                 # )
                 response_auth = client.get(
-                    "http://app.local/ums/auth/validate-token",
+                    "http://ums-service:8000/auth/validate-token",
                     headers={"Authorization": f"Bearer {token}"}
                 )
 
