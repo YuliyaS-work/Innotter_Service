@@ -30,7 +30,6 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS: list[str] = ['*']
 
-FORCE_SCRIPT_NAME = '/innotter'
 
 # Application definition
 
