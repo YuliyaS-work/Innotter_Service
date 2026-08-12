@@ -27,7 +27,12 @@ class JwtAuthMiddleware:
     """
     def __init__(self, get_response):
         self.get_response = get_response
-        self.exempt_paths = ['/health/', '/health']
+        self.exempt_paths = self.exempt_paths = [
+            '/health/',
+            '/health',
+            '/innotter/health/',
+            '/innotter/health'
+        ]
 
     def __call__(self, request):
         if request.path in self.exempt_paths:
