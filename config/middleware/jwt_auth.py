@@ -27,8 +27,12 @@ class JwtAuthMiddleware:
     """
     def __init__(self, get_response):
         self.get_response = get_response
+        self.exempt_paths = ['/health/', '/health']
 
     def __call__(self, request):
+        if request.path in self.exempt_paths:
+            return self.get_response(request)
+
         token = request.COOKIES.get("access_token")
         logger.info(f"[JwtAuthMiddleware] Token received, token={token}")
 
