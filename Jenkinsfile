@@ -111,14 +111,20 @@ spec:
                             kubectl apply -f k8s/namespace.yaml
 
                             kubectl apply -f k8s/shared/rabbitmq.yaml --validate=false
-                            kubectl rollout status deployment rabbitmq -n app --timeout=90s
+                            kubectl rollout status statefulset rabbitmq -n app --timeout=90s
                             kubectl apply -f k8s/shared/redis.yaml --validate=false
-                            kubectl rollout status deployment redis -n app --timeout=90s
+                            kubectl rollout status statefulset redis -n app --timeout=90s
 
                             kubectl apply -f k8s/innotter/ --validate=false
+                            kubectl rollout status statefulset innotter-mysql -n app --timeout=120s
 
-                            kubectl rollout restart deployment innotter -n app
+                            kubectl apply -f k8s/ingress.yaml --validate=false
+
+                            kubectl rollout restart deployment innotter innotter-celery-worker innotter-celery-beat -n app
+
                             kubectl rollout status deployment innotter -n app --timeout=120s
+                            kubectl rollout status deployment innotter-celery-worker -n app --timeout=120s
+                            kubectl rollout status deployment innotter-celery-beat -n app --timeout=120s
                         '''
                     }
                 }
