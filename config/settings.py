@@ -31,6 +31,10 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS: list[str] = ['*']
 
 
+CSRF_TRUSTED_ORIGINS = [
+    "https://app.local"
+]
+
 # Application definition
 
 INSTALLED_APPS = [
