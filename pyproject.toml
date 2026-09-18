@@ -1,0 +1,74 @@
+[project]
+name = "innotter-service"
+version = "0.1.0"
+description = "Innotter service"
+requires-python = ">=3.13"
+dependencies = [
+    "aio-pika>=10.0.1",
+    "boto3>=1.43.50",
+    "celery>=5.6.3",
+    "coverage>=7.15.2",
+    "django>=6.0.6",
+    "djangorestframework>=3.17.1",
+    "drf-spectacular>=0.29.0",
+    "gunicorn>=26.0.0",
+    "httpx>=0.28.1",
+    "pymysql>=1.2.0",
+    "pytest-asyncio>=1.4.0",
+    "pytest-django>=4.12.0",
+    "python-decouple>=3.8",
+    "redis>=8.0.1",
+    "whitenoise>=6.12.0",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+
+[dependency-groups]
+dev = [
+    "django-stubs[compatible-mypy]>=6.0.6",
+    "djangorestframework-stubs>=3.17.0",
+    "mypy>=2.1.0",
+    "ruff>=0.15.20",
+]
+
+[tool.mypy]
+python_version = "3.13"
+#plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict = true
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_unused_ignores = false
+disallow_untyped_defs = false
+allow_redefinition = true
+warn_return_any = false
+mypy_path = "innotter_service"
+
+[tool.django-stubs]
+django_settings_module = "innotter_service.config.settings"
+
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "*.migrations.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "innotter.models"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "innotter.admin"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "innotter.serializers"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "manage"
+ignore_errors = true

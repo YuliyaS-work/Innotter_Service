@@ -1,0 +1,120 @@
+x-env: &common-env
+  DB_ENGINE: ${DB_ENGINE}
+  DB_HOST: ${DB_HOST}
+  DB_PORT: ${DB_PORT}
+  DB_NAME: ${DB_NAME}
+  DB_USER: ${DB_USER}
+  DB_PASSWORD: ${DB_PASSWORD}
+  SECRET_KEY: ${SECRET_KEY}
+  AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+  AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+  AWS_REGION: ${AWS_REGION}
+  BUCKET_NAME: ${BUCKET_NAME}
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  REDIS_PORT: ${REDIS_PORT}
+  RABBITMQ_URL: ${RABBITMQ_URL}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+  CELERYD_POOL: ${CELERYD_POOL}
+
+services:
+    db_ints:
+      image: mysql:8.0
+      container_name: mysql_innotter
+      restart: always
+      healthcheck:
+        test: [ "CMD", "mysqladmin", "ping", "-h", "localhost" ]
+        interval: 5s
+        timeout: 5s
+        retries: 10
+      environment:
+        - MYSQL_ROOT_PASSWORD=${DB_PASSWORD}
+        - MYSQL_DATABASE=${DB_NAME}
+        - MYSQL_USER=${DB_USER}
+        - MYSQL_PASSWORD=${DB_PASSWORD}
+      volumes:
+        - mysql-data:/var/lib/mysql
+      ports:
+        - "3306:3306"
+      networks:
+        - inner-net
+
+
+    ints_app:
+      build: .
+      command: >
+        sh -c "
+        python manage.py collectstatic --noinput &&
+        python manage.py migrate &&
+        gunicorn config.wsgi:application --bind 0.0.0.0:8002 --workers 3
+        "
+      environment:
+        <<: *common-env
+      depends_on:
+        db_ints:
+          condition: service_healthy
+      ports:
+        - "8002:8002"
+      networks:
+        - inner-net
+
+
+    celery_worker:
+        build: .
+        command: python -m celery -A config worker -l info
+        environment:
+          <<: *common-env
+        depends_on:
+          - ints_app
+          - redis_ints
+        networks:
+          - inner-net
+
+
+    celery_beat:
+        build: .
+        command: python -m celery -A config beat -l info --schedule=/app/celerybeat/celerybeat-schedule
+        environment:
+          <<: *common-env
+        depends_on:
+          - redis_ints
+          - db_ints
+        volumes:
+          - beat-data:/app/celerybeat
+        networks:
+          - inner-net
+
+
+    redis_ints:
+      image: redis:latest
+      container_name: redis_innotter
+      restart: unless-stopped
+      command: redis-server --bind 0.0.0.0 --requirepass ${REDIS_PASSWORD} --appendonly yes
+      volumes:
+        - redis-data:/data
+      networks:
+        - inner-net
+
+
+    rabbitmq_consumer:
+      build: .
+      command: python manage.py run_consumer
+      restart: always
+      environment:
+        <<: *common-env
+      depends_on:
+        db_ints:
+          condition: service_healthy
+      networks:
+        - inner-net
+
+volumes:
+  mysql-data:
+  redis-data:
+  beat-data:
+
+
+networks:
+  inner-net:
+    external: true

@@ -1,0 +1,80 @@
+# -------------------------
+# Python cache and artifacts
+# -------------------------
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# -------------------------
+# Virtual environments
+# -------------------------
+.venv/
+venv/
+env/
+
+# -------------------------
+# Build / packaging
+# -------------------------
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# -------------------------
+# Test cache
+# -------------------------
+.pytest_cache/
+.coverage
+htmlcov/
+
+# -------------------------
+# Jupyter
+# -------------------------
+.ipynb_checkpoints/
+
+# -------------------------
+# OS files
+# -------------------------
+.DS_Store
+Thumbs.db
+
+# -------------------------
+# Git
+# -------------------------
+.git
+.gitignore
+.gitattributes
+
+# -------------------------
+# IDE / Editor
+# -------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# -------------------------
+# Environment / secrets
+# -------------------------
+.env
+.env.*
+*.env
+
+# -------------------------
+# Docker
+# -------------------------
+docker-compose.override.yml
+docker-compose.local.yml
+
+# -------------------------
+# Project-specific
+# -------------------------
+# Alembic cache
+alembic/versions/__pycache__/
+
+# Local data, logs, temp
+*.log
+tmp/
+data/
