@@ -31,9 +31,11 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 ALLOWED_HOSTS: list[str] = ['*']
 
 
-CSRF_TRUSTED_ORIGINS = [
-    "https://app.local"
-]
+CSRF_TRUSTED_ORIGINS = config('CSRF_TRUSTED_ORIGINS', '').split(',')
+
+# CORS
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', '').split(',')
 
 # Application definition
 
@@ -49,9 +51,12 @@ INSTALLED_APPS = [
     'drf_spectacular',
 
     'innotter',
+
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
 
     'whitenoise.middleware.WhiteNoiseMiddleware',

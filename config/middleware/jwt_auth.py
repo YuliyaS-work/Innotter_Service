@@ -50,14 +50,14 @@ class JwtAuthMiddleware:
 
         try:
             with httpx.Client(timeout=5, follow_redirects=True) as client:
-                # response_auth = client.get(
-                #     "http://ums_app:8000/auth/validate-token",
-                #     headers={"Authorization": f"Bearer {token}"}
-                # )
                 response_auth = client.get(
-                    "http://ums-service:8000/auth/validate-token",
+                    "http://ums_app:8000/auth/validate-token",
                     headers={"Authorization": f"Bearer {token}"}
                 )
+                # response_auth = client.get(
+                #     "http://ums-service:8000/auth/validate-token",
+                #     headers={"Authorization": f"Bearer {token}"}
+                # )
 
         except httpx.RequestError:
             logger.error("[JwtAuthMiddleware] Error while building request")

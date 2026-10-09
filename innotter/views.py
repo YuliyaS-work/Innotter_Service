@@ -89,6 +89,7 @@ class FeedAPIView(APIView):
     and returns them as a JSON list.
     """
     permission_classes = [AllowAllAuthenticatedUser]
+    authentication_classes = []
     serializer_class = FeedSerializer
 
     @extend_schema(
@@ -128,6 +129,7 @@ class PageCreateAPIView(APIView):
     Returns a new page.
     """
     permission_classes = [AllowAllAuthenticatedUser]
+    authentication_classes = []
 
     @extend_schema(
         request=PageCreateUpdateSerializer,
@@ -300,6 +302,7 @@ class PageFollowUnfollowAPIView(APIView):
     Returns the updated page.
     """
     permission_classes = [AllowAllAuthenticatedUser]
+    authentication_classes = []
 
     @extend_schema(
         parameters=[
@@ -362,6 +365,7 @@ class PageFollowersGetAPIView(APIView):
     """
     permission_classes = [IsUserOwner | IsAdminModerator]
     serializer_class = FollowersGetSerializer
+    authentication_classes = []
 
     @extend_schema(
         parameters=[
@@ -397,6 +401,7 @@ class PageBlockAPIView(APIView):
     """
     permission_classes = [IsAdminModerator]
     serializer_class = PageGetSerializer
+    authentication_classes = []
 
     @extend_schema(
         parameters=[
@@ -448,6 +453,7 @@ class PostCreateAPIView(APIView):
     """
     permission_classes = [IsUserOwner]
     serializer_class = PostCreateUpdateSerializer
+    authentication_classes = []
 
     @extend_schema(
         parameters=[
